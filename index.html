@@ -216,20 +216,43 @@ function updateSetup(){
   loadTransactions();
 }
 
+// ---------- global error visibility ----------
+function showFatalError(msg){
+  let box = document.getElementById('fatalErrorBox');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'fatalErrorBox';
+    box.style.cssText = 'position:sticky;top:0;z-index:999;background:#FFE4E6;border-bottom:2px solid #FB7185;color:#9F1239;padding:12px 16px;font-size:12px;font-family:monospace;white-space:pre-wrap;';
+    document.body.prepend(box);
+  }
+  box.textContent = '⚠ ERROR: ' + msg;
+}
+window.onerror = function(message, source, lineno, colno, error){
+  showFatalError(message + ' (line ' + lineno + ')');
+  return false;
+};
+window.addEventListener('unhandledrejection', function(event){
+  showFatalError('Promise error: ' + (event.reason && event.reason.message ? event.reason.message : event.reason));
+});
+
 // ---------- init ----------
 window.addEventListener('load', () => {
-  const cfg = getConfig();
-  document.getElementById('yearLabel').textContent = YEAR;
-  document.getElementById('fDate').value = todayISO();
-  populateCategorySelect();
-  populateMonthSelect();
-  if(cfg.url && cfg.pin){
-    document.getElementById('settingsUrl').value = cfg.url;
-    document.getElementById('settingsPin').value = cfg.pin;
-    initApp();
-  } else {
-    document.getElementById('setupScreen').style.display = 'block';
-    document.getElementById('app').style.display = 'none';
+  try{
+    const cfg = getConfig();
+    document.getElementById('yearLabel').textContent = YEAR;
+    document.getElementById('fDate').value = todayISO();
+    populateCategorySelect();
+    populateMonthSelect();
+    if(cfg.url && cfg.pin){
+      document.getElementById('settingsUrl').value = cfg.url;
+      document.getElementById('settingsPin').value = cfg.pin;
+      initApp();
+    } else {
+      document.getElementById('setupScreen').style.display = 'block';
+      document.getElementById('app').style.display = 'none';
+    }
+  }catch(err){
+    showFatalError('Init failed: ' + err.message);
   }
 });
 
