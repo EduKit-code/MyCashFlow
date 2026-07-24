@@ -404,6 +404,13 @@ async function testConnection(){
       const data = JSON.parse(raw);
       if(data.ok){
         report += 'JSON valid ✓ | jumlah baris: ' + (data.rows ? data.rows.length : 0);
+        if(data.rows && data.rows.length){
+          const r0 = data.rows[0];
+          report += '\n\nCONTOH BARIS PERTAMA (mentah):\n' + JSON.stringify(r0);
+          report += '\ntipe field tanggal: ' + (typeof r0.tanggal);
+          const testParse = new Date(r0.tanggal);
+          report += '\nhasil new Date(tanggal): ' + testParse + ' | valid? ' + !isNaN(testParse.getTime());
+        }
       } else {
         report += 'JSON valid tapi ok:false | error dari server: ' + data.error;
       }
