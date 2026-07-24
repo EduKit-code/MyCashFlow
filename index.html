@@ -168,6 +168,7 @@
       <input id="settingsPin" type="password">
       <button class="btn btn-primary" onclick="updateSetup()">Simpan Perubahan</button>
       <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="loadTransactions()">Muat Ulang Data dari Sheet</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="testConnection()">Tes Koneksi (diagnostik)</button>
       <div id="settingsStatus" class="status"></div>
     </div>
   </div>
@@ -314,6 +315,10 @@ async function fetchWithTimeout(url, options, ms){
 
 async function loadTransactions(){
   const cfg = getConfig();
+  if(!cfg.url || !cfg.pin){
+    document.getElementById('submitStatus').textContent = '⚠ URL/PIN belum diatur. Buka tab Pengaturan dulu.';
+    return;
+  }
   document.getElementById('submitStatus').textContent = 'Memuat data...';
   try{
     const res = await fetchWithTimeout(cfg.url, {
@@ -321,16 +326,33 @@ async function loadTransactions(){
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ pin: cfg.pin, action:'list' })
     }, 15000);
-    const data = await res.json();
+    const raw = await res.text();
+    const data = parseApiResponse_(raw, res);
     if(!data.ok){ throw new Error(data.error || 'Gagal memuat data'); }
     transactions = data.rows.map(r => ({...r, jumlah:Number(r.jumlah)}));
-    document.getElementById('submitStatus').textContent = '';
+    document.getElementById('submitStatus').textContent = 'Termuat: ' + transactions.length + ' transaksi ✓';
     renderAll();
   }catch(err){
     const msg = err.name === 'AbortError'
-      ? 'Waktu tunggu habis (15 detik) — kemungkinan diblokir Brave Shields atau koneksi lambat.'
+      ? 'Waktu tunggu habis (15 detik) — kemungkinan diblokir Brave Shields/adblock atau koneksi lambat.'
       : err.message;
     document.getElementById('submitStatus').textContent = '⚠ ' + msg;
+    showFatalError(msg);
+  }
+}
+
+// Membaca respons mentah dan memberi pesan diagnostik yang jelas kalau bukan JSON valid
+// (paling sering terjadi kalau: 1) URL Web App salah/expired, 2) izin deployment
+// bukan "Anyone", atau 3) Apps Script balik halaman error HTML alih-alih JSON).
+function parseApiResponse_(raw, res){
+  try{
+    return JSON.parse(raw);
+  }catch(parseErr){
+    const preview = raw.slice(0, 160).replace(/\s+/g,' ').trim();
+    if(/accounts\.google\.com|ServiceLogin|<html/i.test(raw)){
+      throw new Error('Server balas halaman login Google, bukan data (HTTP ' + res.status + '). Cek ulang: deployment Apps Script harus "Who has access: Anyone", dan URL harus yang berakhiran /exec (bukan /dev).');
+    }
+    throw new Error('Respons server bukan JSON valid (HTTP ' + res.status + '). Awal respons: "' + preview + '..."');
   }
 }
 
@@ -349,7 +371,8 @@ async function submitTransaction(){
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ pin: cfg.pin, action:'add', tanggal:date, tipe:formType, kategori:category, jumlah:amount, catatan:note })
     }, 15000);
-    const data = await res.json();
+    const raw = await res.text();
+    const data = parseApiResponse_(raw, res);
     if(!data.ok){ throw new Error(data.error || 'Gagal menyimpan'); }
     document.getElementById('fAmount').value = '';
     document.getElementById('fNote').value = '';
@@ -361,6 +384,38 @@ async function submitTransaction(){
       ? 'Waktu tunggu habis (15 detik) — kemungkinan diblokir Brave Shields atau koneksi lambat.'
       : err.message;
     document.getElementById('submitStatus').textContent = '⚠ ' + msg;
+  }
+}
+
+async function testConnection(){
+  const cfg = getConfig();
+  const el = document.getElementById('settingsStatus');
+  if(!cfg.url || !cfg.pin){ el.textContent = '⚠ Isi & simpan URL/PIN dulu.'; return; }
+  el.textContent = 'Menguji koneksi...';
+  try{
+    const res = await fetchWithTimeout(cfg.url, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ pin: cfg.pin, action:'list' })
+    }, 15000);
+    const raw = await res.text();
+    let report = 'HTTP ' + res.status + ' | panjang respons: ' + raw.length + ' char\n';
+    try{
+      const data = JSON.parse(raw);
+      if(data.ok){
+        report += 'JSON valid ✓ | jumlah baris: ' + (data.rows ? data.rows.length : 0);
+      } else {
+        report += 'JSON valid tapi ok:false | error dari server: ' + data.error;
+      }
+    }catch(e){
+      report += 'GAGAL parse JSON. Awal respons mentah:\n' + raw.slice(0,300);
+    }
+    el.style.whiteSpace = 'pre-wrap';
+    el.style.textAlign = 'left';
+    el.style.fontFamily = 'ui-monospace,monospace';
+    el.textContent = report;
+  }catch(err){
+    el.textContent = '⚠ Fetch gagal total: ' + err.message + (err.name==='AbortError' ? ' (timeout 15s — cek Brave Shields / adblock / URL salah)' : '');
   }
 }
 
@@ -508,6 +563,10 @@ function renderAnalytics(){
     };
   });
 
+  const chartWrap = document.getElementById('chartWrap');
+  if(typeof Chart === 'undefined'){
+    chartWrap.innerHTML = '<div class="banner banner-warn">Grafik tidak bisa dimuat — library Chart.js diblokir (kemungkinan oleh Brave Shields / ad-blocker). Data tetap aman, coba matikan shield untuk domain ini lalu refresh.</div>';
+  } else {
   const ctx = document.getElementById('trendChart').getContext('2d');
   if(trendChartInstance) trendChartInstance.destroy();
   trendChartInstance = new Chart(ctx, {
@@ -525,6 +584,7 @@ function renderAnalytics(){
       plugins:{ legend:{ labels:{ font:{size:12} } } }
     }
   });
+  }
 
   // pivot table: expense category x month
   const rows = {};
