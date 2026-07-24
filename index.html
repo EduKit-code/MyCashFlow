@@ -278,22 +278,36 @@ function switchTab(name){
 }
 
 // ---------- data ----------
+async function fetchWithTimeout(url, options, ms){
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms || 15000);
+  try{
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 async function loadTransactions(){
   const cfg = getConfig();
   document.getElementById('submitStatus').textContent = 'Memuat data...';
   try{
-    const res = await fetch(cfg.url, {
+    const res = await fetchWithTimeout(cfg.url, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ pin: cfg.pin, action:'list' })
-    });
+    }, 15000);
     const data = await res.json();
     if(!data.ok){ throw new Error(data.error || 'Gagal memuat data'); }
     transactions = data.rows.map(r => ({...r, jumlah:Number(r.jumlah)}));
     document.getElementById('submitStatus').textContent = '';
     renderAll();
   }catch(err){
-    document.getElementById('submitStatus').textContent = '⚠ ' + err.message;
+    const msg = err.name === 'AbortError'
+      ? 'Waktu tunggu habis (15 detik) — kemungkinan diblokir Brave Shields atau koneksi lambat.'
+      : err.message;
+    document.getElementById('submitStatus').textContent = '⚠ ' + msg;
   }
 }
 
@@ -307,11 +321,11 @@ async function submitTransaction(){
 
   document.getElementById('submitStatus').textContent = 'Menyimpan...';
   try{
-    const res = await fetch(cfg.url, {
+    const res = await fetchWithTimeout(cfg.url, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ pin: cfg.pin, action:'add', tanggal:date, tipe:formType, kategori:category, jumlah:amount, catatan:note })
-    });
+    }, 15000);
     const data = await res.json();
     if(!data.ok){ throw new Error(data.error || 'Gagal menyimpan'); }
     document.getElementById('fAmount').value = '';
@@ -320,7 +334,10 @@ async function submitTransaction(){
     await loadTransactions();
     setTimeout(() => { document.getElementById('submitStatus').textContent = ''; }, 2000);
   }catch(err){
-    document.getElementById('submitStatus').textContent = '⚠ ' + err.message;
+    const msg = err.name === 'AbortError'
+      ? 'Waktu tunggu habis (15 detik) — kemungkinan diblokir Brave Shields atau koneksi lambat.'
+      : err.message;
+    document.getElementById('submitStatus').textContent = '⚠ ' + msg;
   }
 }
 
