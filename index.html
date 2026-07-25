@@ -111,6 +111,11 @@
           <div class="bar-track"><div id="barExpense" class="bar-fill" style="background:var(--coral);width:0%"></div></div>
           <div id="valExpense" class="neraca-value">Rp 0</div>
         </div>
+        <div class="neraca-col">
+          <div class="neraca-label">Tabungan/Investasi</div>
+          <div class="bar-track"><div id="barSaving" class="bar-fill" style="background:#6366F1;width:0%"></div></div>
+          <div id="valSaving" class="neraca-value" style="color:#6366F1;">Rp 0</div>
+        </div>
         <div class="neraca-col" style="flex:1 1 220px;">
           <div class="neraca-label">Selisih Bulan Ini</div>
           <div id="valSelisih" class="neraca-big">Rp 0</div>
@@ -153,6 +158,10 @@
       <h2>Tren Pemasukan vs Pengeluaran</h2>
       <div id="chartWrap"><canvas id="trendChart"></canvas></div>
     </div>
+    <div class="card">
+      <h2>Aset Terkumpul (Tabungan/Investasi)</h2>
+      <div id="assetSummaryWrap"></div>
+    </div>
     <div class="card" style="overflow-x:auto;">
       <h2>Pivot Pengeluaran per Kategori × Bulan</h2>
       <div id="pivotWrap"></div>
@@ -171,12 +180,33 @@
       <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="testConnection()">Tes Koneksi (diagnostik)</button>
       <div id="settingsStatus" class="status"></div>
     </div>
+
+    <div class="card">
+      <h2>Saldo Awal Tabungan/Investasi</h2>
+      <div class="status" style="margin:0 0 6px;text-align:left;">Isi sekali sesuai saldo yang udah ada sekarang. Setelah itu tinggal catat transaksi baru seperti biasa (kategori Tabungan Emas / RDPT), totalnya otomatis nambah dari sini.</div>
+      <label>Saldo Awal Tabungan Emas (Pegadaian)</label>
+      <input id="saldoAwalEmas" type="number" min="0" placeholder="cth. 2000000">
+      <label>Saldo Awal RDPT</label>
+      <input id="saldoAwalRdpt" type="number" min="0" placeholder="cth. 1500000">
+      <button class="btn btn-primary" onclick="saveAssetConfig()">Simpan Saldo Awal</button>
+      <div id="assetConfigStatus" class="status"></div>
+    </div>
   </div>
 </div>
 
 <script>
-const INCOME_CATEGORIES = ['Gaji Guru','TPG (Tunjangan Profesi Guru)','Side Income','Trading DLMM (LP)','Investasi Cair','Pinjaman Masuk','Lainnya'];
+const INCOME_CATEGORIES = ['Gaji Guru','TPG (Tunjangan Profesi Guru)','Side Income','Trading DLMM (LP)','Investasi Cair (Tabungan Emas)','Investasi Cair (RDPT)','Pinjaman Masuk','Lainnya'];
 const EXPENSE_CATEGORIES = ['Kebutuhan Pokok','Pondok / Pendidikan','Modal Trading','Tabungan Emas','RDPT','Cicilan','Lainnya'];
+// Kategori ini dianggap "pemindahan aset", bukan pengeluaran konsumsi —
+// tetap tercatat sebagai uang keluar dari saldo, tapi dikecualikan dari
+// perhitungan surplus/defisit dan ditampilkan terpisah.
+const SAVING_CATEGORIES = ['Tabungan Emas','RDPT'];
+// Menghubungkan kategori pemasukan "pencairan" ke instrumen tabungan yang
+// dikurangi di kartu Aset Terkumpul.
+const CAIRAN_MAP = {
+  'Investasi Cair (Tabungan Emas)': 'Tabungan Emas',
+  'Investasi Cair (RDPT)': 'RDPT',
+};
 const MONTHS_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const YEAR = new Date().getFullYear();
@@ -217,6 +247,23 @@ function updateSetup(){
   loadTransactions();
 }
 
+// ---------- saldo awal tabungan/investasi ----------
+function getAssetConfig(){
+  return {
+    'Tabungan Emas': Number(localStorage.getItem('cf_saldo_emas')) || 0,
+    'RDPT': Number(localStorage.getItem('cf_saldo_rdpt')) || 0,
+  };
+}
+function saveAssetConfig(){
+  const emas = parseFloat(document.getElementById('saldoAwalEmas').value) || 0;
+  const rdpt = parseFloat(document.getElementById('saldoAwalRdpt').value) || 0;
+  localStorage.setItem('cf_saldo_emas', emas);
+  localStorage.setItem('cf_saldo_rdpt', rdpt);
+  document.getElementById('assetConfigStatus').textContent = 'Tersimpan ✓';
+  renderAssetSummary();
+  setTimeout(() => { document.getElementById('assetConfigStatus').textContent = ''; }, 2000);
+}
+
 // ---------- global error visibility ----------
 function showFatalError(msg){
   let box = document.getElementById('fatalErrorBox');
@@ -244,6 +291,9 @@ window.addEventListener('load', () => {
     document.getElementById('fDate').value = todayISO();
     populateCategorySelect();
     populateMonthSelect();
+    const assetCfg = getAssetConfig();
+    document.getElementById('saldoAwalEmas').value = assetCfg['Tabungan Emas'] || '';
+    document.getElementById('saldoAwalRdpt').value = assetCfg['RDPT'] || '';
     if(cfg.url && cfg.pin){
       document.getElementById('settingsUrl').value = cfg.url;
       document.getElementById('settingsPin').value = cfg.pin;
@@ -443,19 +493,26 @@ async function removeTransaction(id){
 function computeFeedback(monthTx){
   const income = monthTx.filter(t => t.tipe === 'income');
   const expense = monthTx.filter(t => t.tipe === 'expense');
+  const expenseMurni = expense.filter(t => !SAVING_CATEGORIES.includes(t.kategori));
+  const expenseTabungan = expense.filter(t => SAVING_CATEGORIES.includes(t.kategori));
   const totalIncome = income.reduce((s,t) => s+t.jumlah, 0);
-  const totalExpense = expense.reduce((s,t) => s+t.jumlah, 0);
+  const totalExpense = expenseMurni.reduce((s,t) => s+t.jumlah, 0);
+  const totalTabungan = expenseTabungan.reduce((s,t) => s+t.jumlah, 0);
   const pinjaman = income.filter(t => t.kategori === 'Pinjaman Masuk').reduce((s,t) => s+t.jumlah,0);
   const selisih = totalIncome - totalExpense;
   const banners = [];
 
   const catTotals = {};
-  expense.forEach(t => { catTotals[t.kategori] = (catTotals[t.kategori]||0) + t.jumlah; });
+  expenseMurni.forEach(t => { catTotals[t.kategori] = (catTotals[t.kategori]||0) + t.jumlah; });
   let topCat = null, topVal = 0;
   Object.entries(catTotals).forEach(([k,v]) => { if(v > topVal){ topVal = v; topCat = k; } });
 
+  if(totalTabungan > 0){
+    banners.push({ level:'info', text: 'Nabung/investasi bulan ini: ' + rupiah(totalTabungan) + ' — sudah pindah jadi aset, gak dihitung sebagai pengeluaran di atas.' });
+  }
+
   if(totalIncome === 0 && totalExpense === 0){
-    return { totalIncome, totalExpense, selisih, banners: [] };
+    return { totalIncome, totalExpense, totalTabungan, selisih, banners };
   }
 
   if(selisih < 0){
@@ -481,7 +538,7 @@ function computeFeedback(monthTx){
     banners.push({ level:'note', text: 'Kategori "' + topCat + '" porsinya ' + ((topVal/totalExpense)*100).toFixed(0) + '% dari total pengeluaran — kelewat dominan dibanding kategori lain.' });
   }
 
-  return { totalIncome, totalExpense, selisih, banners };
+  return { totalIncome, totalExpense, totalTabungan, selisih, banners };
 }
 
 // ---------- render: Buku Kas ----------
@@ -496,14 +553,16 @@ function getMonthTx(){
 function renderAll(){
   const monthTx = getMonthTx();
   const fb = computeFeedback(monthTx);
-  const maxBar = Math.max(fb.totalIncome, fb.totalExpense, 1);
+  const maxBar = Math.max(fb.totalIncome, fb.totalExpense, fb.totalTabungan, 1);
 
   document.getElementById('valIncome').textContent = rupiah(fb.totalIncome);
   document.getElementById('valExpense').textContent = rupiah(fb.totalExpense);
+  document.getElementById('valSaving').textContent = rupiah(fb.totalTabungan);
   document.getElementById('valSelisih').textContent = rupiah(fb.selisih);
   document.getElementById('valSelisih').style.color = fb.selisih >= 0 ? 'var(--lime-dark)' : 'var(--coral)';
   document.getElementById('barIncome').style.width = (fb.totalIncome/maxBar*100) + '%';
   document.getElementById('barExpense').style.width = (fb.totalExpense/maxBar*100) + '%';
+  document.getElementById('barSaving').style.width = (fb.totalTabungan/maxBar*100) + '%';
 
   const fbWrap = document.getElementById('feedbackWrap');
   fbWrap.innerHTML = '';
@@ -528,12 +587,15 @@ function renderAll(){
   } else {
     entries.forEach(([key,val]) => {
       const [type,cat] = key.split(':');
-      const pct = val / (type==='income' ? Math.max(fb.totalIncome,1) : Math.max(fb.totalExpense,1)) * 100;
+      const isSaving = type === 'expense' && SAVING_CATEGORIES.includes(cat);
+      const base = type === 'income' ? fb.totalIncome : (isSaving ? fb.totalTabungan : fb.totalExpense);
+      const pct = val / Math.max(base,1) * 100;
+      const color = type === 'income' ? 'var(--lime-dark)' : (isSaving ? '#6366F1' : 'var(--coral)');
       const row = document.createElement('div'); row.style.marginBottom = '12px';
       row.innerHTML =
         '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">' +
-        '<span style="font-weight:700;">'+cat+'</span><span style="font-family:ui-monospace,monospace;color:var(--ink-soft);">'+rupiah(val)+'</span></div>' +
-        '<div class="bar-track" style="height:7px;"><div class="bar-fill" style="height:100%;width:'+pct+'%;background:'+(type==='income'?'var(--lime-dark)':'var(--coral)')+'"></div></div>';
+        '<span style="font-weight:700;">'+cat+(isSaving?' <span style="font-weight:400;color:var(--muted);">(tabungan)</span>':'')+'</span><span style="font-family:ui-monospace,monospace;color:var(--ink-soft);">'+rupiah(val)+'</span></div>' +
+        '<div class="bar-track" style="height:7px;"><div class="bar-fill" style="height:100%;width:'+pct+'%;background:'+color+'"></div></div>';
       catWrap.appendChild(row);
     });
   }
@@ -560,13 +622,43 @@ function escapeHtml(s){
   const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
 }
 
+// ---------- render: Aset Terkumpul ----------
+function renderAssetSummary(){
+  const wrap = document.getElementById('assetSummaryWrap');
+  if(!wrap) return;
+  const saldoAwal = getAssetConfig();
+  let html = '';
+  SAVING_CATEGORIES.forEach(cat => {
+    const setoran = transactions.filter(t => t.tipe==='expense' && t.kategori===cat).reduce((s,t)=>s+t.jumlah,0);
+    const cairanCat = Object.keys(CAIRAN_MAP).find(k => CAIRAN_MAP[k] === cat);
+    const pencairan = transactions.filter(t => t.tipe==='income' && t.kategori===cairanCat).reduce((s,t)=>s+t.jumlah,0);
+    const total = (saldoAwal[cat]||0) + setoran - pencairan;
+    html +=
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--track);">' +
+      '<div><div style="font-weight:700;font-size:14px;">'+cat+'</div>' +
+      '<div style="font-size:11px;color:var(--muted);">saldo awal '+rupiah(saldoAwal[cat]||0)+' + setoran '+rupiah(setoran)+(pencairan>0?' − pencairan '+rupiah(pencairan):'')+'</div></div>' +
+      '<div style="font-family:ui-monospace,monospace;font-weight:700;font-size:15px;color:#6366F1;">'+rupiah(total)+'</div>' +
+      '</div>';
+  });
+  const grandTotal = SAVING_CATEGORIES.reduce((sum,cat) => {
+    const setoran = transactions.filter(t=>t.tipe==='expense'&&t.kategori===cat).reduce((s2,t)=>s2+t.jumlah,0);
+    const cairanCat = Object.keys(CAIRAN_MAP).find(k => CAIRAN_MAP[k] === cat);
+    const pencairan = transactions.filter(t=>t.tipe==='income'&&t.kategori===cairanCat).reduce((s2,t)=>s2+t.jumlah,0);
+    return sum + (saldoAwal[cat]||0) + setoran - pencairan;
+  }, 0);
+  html += '<div style="display:flex;justify-content:space-between;padding-top:12px;font-weight:800;"><span>Total</span><span style="font-family:ui-monospace,monospace;color:#6366F1;">'+rupiah(grandTotal)+'</span></div>';
+  wrap.innerHTML = html;
+}
+
 // ---------- render: Analitik ----------
 function renderAnalytics(){
+  renderAssetSummary();
   const monthly = MONTHS_SHORT.map((m,i) => {
     const txs = transactions.filter(t => { const d = new Date(t.tanggal); return d.getMonth()===i && d.getFullYear()===YEAR; });
     return {
       income: txs.filter(t=>t.tipe==='income').reduce((s,t)=>s+t.jumlah,0),
-      expense: txs.filter(t=>t.tipe==='expense').reduce((s,t)=>s+t.jumlah,0),
+      expense: txs.filter(t=>t.tipe==='expense' && !SAVING_CATEGORIES.includes(t.kategori)).reduce((s,t)=>s+t.jumlah,0),
+      saving: txs.filter(t=>t.tipe==='expense' && SAVING_CATEGORIES.includes(t.kategori)).reduce((s,t)=>s+t.jumlah,0),
     };
   });
 
@@ -583,6 +675,7 @@ function renderAnalytics(){
       datasets: [
         { label:'Pemasukan', data: monthly.map(m=>m.income), backgroundColor:'#65A30D', borderRadius:3 },
         { label:'Pengeluaran', data: monthly.map(m=>m.expense), backgroundColor:'#FB7185', borderRadius:3 },
+        { label:'Tabungan/Investasi', data: monthly.map(m=>m.saving), backgroundColor:'#6366F1', borderRadius:3 },
       ]
     },
     options: {
