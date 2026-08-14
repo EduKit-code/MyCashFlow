@@ -152,9 +152,34 @@
     <label>URL Web App (Apps Script)</label>
     <input id="setupUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec">
     <label>PIN</label>
-    <input id="setupPin" type="password" placeholder="PIN yang sama dengan di kode Apps Script">
+    <input id="setupPin" type="password" placeholder="PIN kamu" onkeydown="if(event.key==='Enter')saveSetup()">
     <button class="btn btn-primary" onclick="saveSetup()">Simpan & Mulai</button>
-    <div class="status">URL & PIN disimpan di browser HP ini saja. Kategori, tema, dan saldo investasi disimpan di Sheet-mu, jadi otomatis sinkron di device lain.</div>
+    <div id="setupStatus" class="status"></div>
+    <div class="status">URL & PIN disimpan di browser HP ini saja. Kategori, tema, dan saldo investasi disimpan di Sheet-mu, jadi otomatis sinkron di device lain yang pakai URL+PIN sama.</div>
+  </div>
+</div>
+
+<div id="onboardScreen" class="login-screen" style="display:none;">
+  <div class="login-box" style="max-width:400px;">
+    <div class="eyebrow">Setup Awal</div>
+    <h1 style="font-size:19px;">Kategori Kamu Apa Aja?</h1>
+    <p class="sub">Belum ada kategori tersimpan. Isi sesuai kondisi kamu sendiri — bebas, gak ada bawaan/default yang harus dipakai.</p>
+
+    <div id="onboardStep1">
+      <label style="text-align:left;">Sumber Pemasukan (satu per baris)</label>
+      <textarea id="obIncome" rows="4" style="text-align:left;" placeholder="Gaji&#10;Hasil Konten (Youtube/X)&#10;Freelance&#10;Bonus"></textarea>
+      <label style="text-align:left;">Jenis Pengeluaran & Alokasi Aset (satu per baris)</label>
+      <textarea id="obExpense" rows="4" style="text-align:left;" placeholder="Kebutuhan Pokok&#10;Transportasi&#10;Tabungan Bulanan&#10;Investasi Saham"></textarea>
+      <button class="btn btn-primary" onclick="onboardNext()">Lanjut</button>
+    </div>
+
+    <div id="onboardStep2" style="display:none;text-align:left;">
+      <p style="font-size:13px;color:#666;text-align:left;">Dari daftar pengeluaran tadi, mana aja yang sebenarnya <b>bukan pengeluaran habis</b> — tapi setoran ke aset (nabung/invest)?</p>
+      <div id="obSavingList"></div>
+      <button class="btn btn-primary" onclick="onboardFinish()">Selesai & Mulai</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="onboardBack()">← Kembali</button>
+    </div>
+    <div id="onboardStatus" class="status"></div>
   </div>
 </div>
 
@@ -193,6 +218,11 @@
       <div class="card ai-card" id="aiCard">
         <p class="ai-tagline" id="aiTagline">Memuat…</p>
         <div id="aiBannerWrap"></div>
+      </div>
+
+      <div class="card" id="saldoKasCard">
+        <div class="neraca-label">Saldo Kas Saat Ini (akumulasi dari awal)</div>
+        <div class="neraca-big">–</div>
       </div>
 
       <div class="card">
@@ -311,24 +341,38 @@
       </div>
 
       <div class="card">
-        <h2>Koneksi Spreadsheet</h2>
+        <h2>Ganti PIN</h2>
+        <p style="font-size:13px;color:var(--ink-soft);margin:0 0 4px;">Ganti PIN masuk aplikasi. Berlaku buat semua device yang pakai app ini, jadi harus tau PIN lama dulu.</p>
+        <label>PIN Lama</label>
+        <input id="oldPin" type="password" placeholder="PIN yang lagi dipakai sekarang">
+        <label>PIN Baru</label>
+        <input id="newPin" type="password" placeholder="minimal 4 karakter">
+        <label>Ulangi PIN Baru</label>
+        <input id="newPinConfirm" type="password" placeholder="ketik ulang PIN baru">
+        <button class="btn btn-primary" onclick="changePin()">Ganti PIN</button>
+        <div id="pinStatus" class="status"></div>
+      </div>
+
+      <div class="card">
+        <h2>Koneksi</h2>
         <label>URL Web App</label>
         <input id="settingsUrl" type="text">
-        <label>PIN</label>
-        <input id="settingsPin" type="password">
-        <button class="btn btn-primary" onclick="updateSetup()">Simpan Perubahan</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:6px;" onclick="updateUrl()">Simpan URL</button>
         <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="loadTransactions()">Muat Ulang Data dari Sheet</button>
         <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="testConnection()">Tes Koneksi (diagnostik)</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:8px;color:var(--coral);" onclick="logoutApp()">Keluar (Lupakan URL & PIN di Device Ini)</button>
         <div id="settingsStatus" class="status"></div>
       </div>
 
       <div class="card">
         <h2>Kategori Pemasukan</h2>
+        <div class="status" style="margin:0 0 6px;text-align:left;">Kalau kategori pemasukan tertentu sebenarnya <b>uang cair dari investasi/tabungan</b> (bukan penghasilan baru), pilih di dropdown sebelah nama kategori itu aset mana yang dicairkan — otomatis mengurangi total aset di menu Investasi & Dashboard.</div>
         <div id="incomeCatList"></div>
         <div class="add-row">
           <input id="newIncomeCat" type="text" placeholder="Kategori pemasukan baru">
           <button class="btn btn-secondary" onclick="addCategory('income')">+ Tambah</button>
         </div>
+        <button class="btn-small" style="width:100%;margin-top:10px;padding:8px;" onclick="clearAllCategories('income')">Hapus Semua Kategori Pemasukan</button>
       </div>
 
       <div class="card">
@@ -339,9 +383,11 @@
           <input id="newExpenseCat" type="text" placeholder="Kategori pengeluaran baru">
           <button class="btn btn-secondary" onclick="addCategory('expense')">+ Tambah</button>
         </div>
+        <button class="btn-small" style="width:100%;margin-top:10px;padding:8px;" onclick="clearAllCategories('expense')">Hapus Semua Kategori Pengeluaran</button>
       </div>
 
       <div class="card">
+
         <h2>Saldo Awal Tabungan/Investasi</h2>
         <div class="status" style="margin:0 0 6px;text-align:left;">Isi sekali sesuai saldo yang udah ada sekarang untuk tiap instrumen. Setelahnya tinggal catat setoran seperti biasa lewat menu Investasi.</div>
         <div id="saldoAwalWrap"></div>
@@ -376,26 +422,86 @@ function todayISO(){
 function getConfig(){
   return { url: localStorage.getItem('cf_url'), pin: localStorage.getItem('cf_pin') };
 }
+async function fetchWithTimeout(url, options, ms){
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms || 15000);
+  try{ return await fetch(url, { ...options, signal: controller.signal }); }
+  finally{ clearTimeout(id); }
+}
+function parseApiResponse_(raw, res){
+  try{ return JSON.parse(raw); }
+  catch(parseErr){
+    const preview = raw.slice(0,160).replace(/\s+/g,' ').trim();
+    if(/accounts\.google\.com|ServiceLogin|<html/i.test(raw)){
+      throw new Error('Server balas halaman login Google, bukan data (HTTP ' + res.status + '). Cek ulang: deployment Apps Script harus "Who has access: Anyone", dan URL harus yang berakhiran /exec.');
+    }
+    throw new Error('Respons server bukan JSON valid (HTTP ' + res.status + '). Awal respons: "' + preview + '..."');
+  }
+}
+// Satu pintu buat semua panggilan ke backend doPost — action + payload
+// tambahan sesuai kebutuhan (mirror dari action yang didukung Code.gs).
+async function apiCall(action, extra, timeoutMs, overridePin){
+  const cfg = getConfig();
+  if(!cfg.url) throw new Error('URL Web App belum diisi.');
+  const body = Object.assign({ pin: overridePin !== undefined ? overridePin : cfg.pin, action }, extra || {});
+  const res = await fetchWithTimeout(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body) }, timeoutMs || 15000);
+  const raw = await res.text();
+  const data = parseApiResponse_(raw, res);
+  if(!data.ok) throw new Error(data.error || 'Permintaan gagal.');
+  return data;
+}
 function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function escapeAttr(s){ return String(s).replace(/'/g, "\\'"); }
 
 // ================= SETUP =================
-function saveSetup(){
+async function saveSetup(){
   const url = document.getElementById('setupUrl').value.trim();
   const pin = document.getElementById('setupPin').value.trim();
-  if(!url || !pin){ alert('Isi URL dan PIN dulu ya.'); return; }
+  const statusEl = document.getElementById('setupStatus');
+  if(!url || !pin){ statusEl.textContent = '⚠ Isi URL dan PIN dulu ya.'; return; }
+  statusEl.textContent = 'Memeriksa koneksi...';
   localStorage.setItem('cf_url', url);
   localStorage.setItem('cf_pin', pin);
-  initApp();
+  try{
+    await apiCall('getConfig'); // dipakai sekaligus buat validasi URL & PIN benar
+    statusEl.textContent = '';
+    initApp();
+  }catch(err){
+    statusEl.textContent = '⚠ ' + err.message;
+  }
 }
-function updateSetup(){
+function updateUrl(){
   const url = document.getElementById('settingsUrl').value.trim();
-  const pin = document.getElementById('settingsPin').value.trim();
-  if(!url || !pin){ alert('Isi URL dan PIN dulu ya.'); return; }
+  if(!url){ alert('Isi URL dulu ya.'); return; }
   localStorage.setItem('cf_url', url);
-  localStorage.setItem('cf_pin', pin);
-  document.getElementById('settingsStatus').textContent = 'Tersimpan ✓';
+  document.getElementById('settingsStatus').textContent = 'URL tersimpan ✓';
   loadRemoteConfig().then(loadTransactions);
+}
+async function changePin(){
+  const oldPin = document.getElementById('oldPin').value.trim();
+  const newPin = document.getElementById('newPin').value.trim();
+  const newPinConfirm = document.getElementById('newPinConfirm').value.trim();
+  const statusEl = document.getElementById('pinStatus');
+  if(!oldPin || !newPin){ statusEl.textContent = '⚠ Isi PIN lama dan PIN baru.'; return; }
+  if(newPin.length < 4){ statusEl.textContent = '⚠ PIN baru minimal 4 karakter.'; return; }
+  if(newPin !== newPinConfirm){ statusEl.textContent = '⚠ Konfirmasi PIN baru tidak cocok.'; return; }
+  statusEl.textContent = 'Mengganti PIN...';
+  try{
+    // PIN lama dikirim via overridePin, BUKAN dari localStorage — biar kalau
+    // salah ketik, localStorage gak ikut kesimpen rusak.
+    await apiCall('changePin', { newPin }, 15000, oldPin);
+    localStorage.setItem('cf_pin', newPin);
+    document.getElementById('oldPin').value = '';
+    document.getElementById('newPin').value = '';
+    document.getElementById('newPinConfirm').value = '';
+    statusEl.textContent = 'PIN berhasil diganti ✓ (berlaku buat semua device)';
+  }catch(err){ statusEl.textContent = '⚠ ' + err.message; }
+}
+function logoutApp(){
+  if(!confirm('Keluar dan lupakan URL & PIN di device ini?')) return;
+  localStorage.removeItem('cf_url');
+  localStorage.removeItem('cf_pin');
+  location.reload();
 }
 
 // ================= DRAWER / NAVIGATION =================
@@ -419,30 +525,11 @@ function switchPage(page){
 }
 
 // ================= REMOTE CONFIG =================
-async function fetchWithTimeout(url, options, ms){
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), ms || 15000);
-  try{ return await fetch(url, { ...options, signal: controller.signal }); }
-  finally{ clearTimeout(id); }
-}
-function parseApiResponse_(raw, res){
-  try{ return JSON.parse(raw); }
-  catch(parseErr){
-    const preview = raw.slice(0,160).replace(/\s+/g,' ').trim();
-    if(/accounts\.google\.com|ServiceLogin|<html/i.test(raw)){
-      throw new Error('Server balas halaman login Google, bukan data (HTTP ' + res.status + '). Cek ulang: deployment Apps Script harus "Who has access: Anyone", dan URL harus yang berakhiran /exec.');
-    }
-    throw new Error('Respons server bukan JSON valid (HTTP ' + res.status + '). Awal respons: "' + preview + '..."');
-  }
-}
 async function loadRemoteConfig(){
   const cfg = getConfig();
   if(!cfg.url || !cfg.pin) return;
   try{
-    const res = await fetchWithTimeout(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ pin: cfg.pin, action:'getConfig' }) }, 15000);
-    const raw = await res.text();
-    const data = parseApiResponse_(raw, res);
-    if(!data.ok) throw new Error(data.error || 'Gagal memuat konfigurasi');
+    const data = await apiCall('getConfig');
     CONFIG = Object.assign({incomeCategories:[],expenseCategories:[],savingCategories:[],cairanMap:{},saldoAwal:{},theme:null}, data.config);
     applyTheme(resolveTheme(CONFIG.theme));
     populateCategorySelect('income');
@@ -451,14 +538,33 @@ async function loadRemoteConfig(){
     document.getElementById('settingsStatus').textContent = '⚠ Gagal memuat kategori/config: ' + err.message;
   }
 }
+// Antrian sederhana: kalau ada beberapa perubahan config diklik cepat-cepet
+// (misal Hapus kategori berkali-kali), tiap panggilan HARUS nunggu yang
+// sebelumnya beres dulu baru jalan — supaya gak ada yang kerja pakai data
+// CONFIG yang udah basi lalu nimpa balik perubahan yang barusan disimpan.
+let configMutex = Promise.resolve();
 async function saveRemoteConfig(partial){
-  const cfg = getConfig();
-  const res = await fetchWithTimeout(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ pin: cfg.pin, action:'saveConfig', config: partial }) }, 15000);
-  const raw = await res.text();
-  const data = parseApiResponse_(raw, res);
-  if(!data.ok) throw new Error(data.error || 'Gagal menyimpan konfigurasi');
-  CONFIG = Object.assign({incomeCategories:[],expenseCategories:[],savingCategories:[],cairanMap:{},saldoAwal:{},theme:null}, data.config);
-  return CONFIG;
+  const run = configMutex.then(async () => {
+    const data = await apiCall('saveConfig', { config: partial });
+    CONFIG = Object.assign({incomeCategories:[],expenseCategories:[],savingCategories:[],cairanMap:{},saldoAwal:{},theme:null}, data.config);
+    return CONFIG;
+  });
+  configMutex = run.catch(() => {});
+  return run;
+}
+// Buat perubahan yang HITUNGANNYA bergantung ke isi CONFIG (hapus/tambah
+// kategori, toggle saving, dst) — updater(latestConfig) dipanggil pas giliran
+// antrian ini beneran jalan, bukan pas tombolnya diklik, jadi selalu pakai
+// data paling baru walau ada beberapa klik numpuk cepat-cepat.
+async function mutateConfig(updater){
+  const run = configMutex.then(async () => {
+    const partial = updater(CONFIG);
+    const data = await apiCall('saveConfig', { config: partial });
+    CONFIG = Object.assign({incomeCategories:[],expenseCategories:[],savingCategories:[],cairanMap:{},saldoAwal:{},theme:null}, data.config);
+    return CONFIG;
+  });
+  configMutex = run.catch(() => {});
+  return run;
 }
 
 // ================= KATEGORI (Pengaturan) =================
@@ -466,8 +572,16 @@ function renderCategorySettings(){
   const incWrap = document.getElementById('incomeCatList');
   incWrap.innerHTML = '';
   CONFIG.incomeCategories.forEach(cat => {
+    const currentMap = CONFIG.cairanMap[cat] || '';
     const row = document.createElement('div'); row.className = 'cat-row';
-    row.innerHTML = '<span>'+escapeHtml(cat)+'</span><button class="btn-small" onclick="removeCategory(\'income\',\''+escapeAttr(cat)+'\')">Hapus</button>';
+    let pencairanHtml = '';
+    if(CONFIG.savingCategories.length > 0){
+      const options = ['<option value="">Bukan pencairan</option>'].concat(
+        CONFIG.savingCategories.map(sc => '<option value="'+escapeAttr(sc)+'" '+(currentMap===sc?'selected':'')+'>Pencairan dari: '+escapeHtml(sc)+'</option>')
+      ).join('');
+      pencairanHtml = '<select style="width:auto;font-size:11px;padding:5px 6px;" onchange="updateCairanMap(\''+escapeAttr(cat)+'\', this.value)">'+options+'</select>';
+    }
+    row.innerHTML = '<span>'+escapeHtml(cat)+'</span>' + pencairanHtml + '<button class="btn-small" onclick="removeCategory(\'income\',\''+escapeAttr(cat)+'\')">Hapus</button>';
     incWrap.appendChild(row);
   });
   const expWrap = document.getElementById('expenseCatList');
@@ -482,6 +596,17 @@ function renderCategorySettings(){
     expWrap.appendChild(row);
   });
 }
+async function updateCairanMap(incomeCat, savingCat){
+  try{
+    await mutateConfig(latest => {
+      const updated = Object.assign({}, latest.cairanMap);
+      if(savingCat) updated[incomeCat] = savingCat;
+      else delete updated[incomeCat];
+      return { cairanMap: updated };
+    });
+    renderAssetSummary();
+  }catch(err){ alert('Gagal update: ' + err.message); renderCategorySettings(); }
+}
 async function addCategory(kind){
   const inputId = kind === 'income' ? 'newIncomeCat' : 'newExpenseCat';
   const input = document.getElementById(inputId);
@@ -489,9 +614,11 @@ async function addCategory(kind){
   if(!val) return;
   const key = kind === 'income' ? 'incomeCategories' : 'expenseCategories';
   if(CONFIG[key].includes(val)){ alert('Kategori itu sudah ada.'); return; }
-  const updated = CONFIG[key].concat([val]);
   try{
-    await saveRemoteConfig({ [key]: updated });
+    await mutateConfig(latest => {
+      if(latest[key].includes(val)) return {}; // udah ada (misal ke-tambah dobel), gak usah ubah apa-apa
+      return { [key]: latest[key].concat([val]) };
+    });
     input.value = '';
     renderCategorySettings(); renderSaldoAwalInputs(); populateCategorySelect(kind);
   }catch(err){ alert('Gagal menambah kategori: ' + err.message); }
@@ -499,22 +626,41 @@ async function addCategory(kind){
 async function removeCategory(kind, cat){
   if(!confirm('Hapus kategori "'+cat+'"? Transaksi lama dengan kategori ini tidak ikut terhapus.')) return;
   const key = kind === 'income' ? 'incomeCategories' : 'expenseCategories';
-  const updated = CONFIG[key].filter(c => c !== cat);
-  const payload = { [key]: updated };
-  if(kind === 'expense' && CONFIG.savingCategories.includes(cat)){
-    payload.savingCategories = CONFIG.savingCategories.filter(c => c !== cat);
-  }
   try{
-    await saveRemoteConfig(payload);
+    await mutateConfig(latest => {
+      const payload = { [key]: latest[key].filter(c => c !== cat) };
+      if(kind === 'expense' && latest.savingCategories.includes(cat)){
+        payload.savingCategories = latest.savingCategories.filter(c => c !== cat);
+      }
+      return payload;
+    });
     renderCategorySettings(); renderSaldoAwalInputs(); populateCategorySelect(kind);
   }catch(err){ alert('Gagal menghapus kategori: ' + err.message); }
 }
+async function clearAllCategories(kind){
+  const label = kind === 'income' ? 'pemasukan' : 'pengeluaran';
+  if(!confirm('Hapus SEMUA kategori '+label+'? Transaksi lama tidak ikut terhapus, cuma daftar kategorinya aja yang dikosongkan.')) return;
+  const key = kind === 'income' ? 'incomeCategories' : 'expenseCategories';
+  try{
+    await mutateConfig(latest => {
+      const payload = { [key]: [] };
+      if(kind === 'expense'){ payload.savingCategories = []; payload.saldoAwal = {}; payload.cairanMap = {}; }
+      if(kind === 'income'){ payload.cairanMap = {}; }
+      return payload;
+    });
+    renderCategorySettings(); renderSaldoAwalInputs(); populateCategorySelect(kind);
+  }catch(err){ alert('Gagal menghapus semua kategori: ' + err.message); }
+}
 async function toggleSavingCategory(cat, checked){
-  let updated = CONFIG.savingCategories.slice();
-  if(checked && !updated.includes(cat)) updated.push(cat);
-  if(!checked) updated = updated.filter(c => c !== cat);
-  try{ await saveRemoteConfig({ savingCategories: updated }); renderSaldoAwalInputs(); }
-  catch(err){ alert('Gagal update: ' + err.message); renderCategorySettings(); }
+  try{
+    await mutateConfig(latest => {
+      let updated = latest.savingCategories.slice();
+      if(checked && !updated.includes(cat)) updated.push(cat);
+      if(!checked) updated = updated.filter(c => c !== cat);
+      return { savingCategories: updated };
+    });
+    renderSaldoAwalInputs();
+  }catch(err){ alert('Gagal update: ' + err.message); renderCategorySettings(); }
 }
 function renderSaldoAwalInputs(){
   const wrap = document.getElementById('saldoAwalWrap');
@@ -679,20 +825,62 @@ window.addEventListener('load', () => {
   document.getElementById('fDate-expense').value = todayISO();
   if(cfg.url && cfg.pin){
     document.getElementById('settingsUrl').value = cfg.url;
-    document.getElementById('settingsPin').value = cfg.pin;
     initApp();
   } else {
+    if(cfg.url) document.getElementById('setupUrl').value = cfg.url;
     document.getElementById('setupScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
   }
 });
-function initApp(){
+async function initApp(){
   document.getElementById('setupScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+  document.getElementById('onboardScreen').style.display = 'none';
   populateMonthSelect('income');
   populateMonthSelect('expense');
   renderQuoteOfTheDay();
-  loadRemoteConfig().then(loadTransactions);
+  await loadRemoteConfig();
+  if(CONFIG.incomeCategories.length === 0 && CONFIG.expenseCategories.length === 0){
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('onboardScreen').style.display = 'flex';
+    return;
+  }
+  document.getElementById('app').style.display = 'block';
+  loadTransactions();
+}
+
+// ================= ONBOARDING (setup kategori pertama kali) =================
+function onboardNext(){
+  const inc = document.getElementById('obIncome').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const exp = document.getElementById('obExpense').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(inc.length === 0 || exp.length === 0){ alert('Isi minimal satu sumber pemasukan dan satu jenis pengeluaran ya.'); return; }
+  const listWrap = document.getElementById('obSavingList');
+  listWrap.innerHTML = exp.map(cat => `
+    <label class="inline" style="display:flex;gap:6px;padding:6px 0;font-size:13px;">
+      <input type="checkbox" value="${escapeAttr(cat)}"> ${escapeHtml(cat)}
+    </label>`).join('');
+  document.getElementById('onboardStep1').style.display = 'none';
+  document.getElementById('onboardStep2').style.display = 'block';
+}
+function onboardBack(){
+  document.getElementById('onboardStep1').style.display = 'block';
+  document.getElementById('onboardStep2').style.display = 'none';
+}
+async function onboardFinish(){
+  const inc = document.getElementById('obIncome').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const exp = document.getElementById('obExpense').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const saving = Array.from(document.querySelectorAll('#obSavingList input:checked')).map(el => el.value);
+  const saldoAwal = {};
+  saving.forEach(cat => { saldoAwal[cat] = 0; });
+  const statusEl = document.getElementById('onboardStatus');
+  statusEl.textContent = 'Menyimpan...';
+  try{
+    await saveRemoteConfig({ incomeCategories: inc, expenseCategories: exp, savingCategories: saving, saldoAwal, cairanMap: {} });
+    document.getElementById('onboardScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    populateCategorySelect('income');
+    populateCategorySelect('expense');
+    await loadTransactions();
+  }catch(err){ statusEl.textContent = '⚠ ' + err.message; }
 }
 function populateMonthSelect(kind){
   const sel = document.getElementById('monthSel-'+kind);
@@ -720,10 +908,7 @@ async function loadTransactions(){
   const cfg = getConfig();
   if(!cfg.url || !cfg.pin) return;
   try{
-    const res = await fetchWithTimeout(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ pin: cfg.pin, action:'list' }) }, 15000);
-    const raw = await res.text();
-    const data = parseApiResponse_(raw, res);
-    if(!data.ok) throw new Error(data.error || 'Gagal memuat data');
+    const data = await apiCall('list');
     transactions = data.rows.map(r => ({...r, jumlah:Number(r.jumlah)}));
     if(currentPage === 'dashboard') renderDashboard();
     if(currentPage === 'income') renderLedger('income');
@@ -735,7 +920,6 @@ async function loadTransactions(){
   }
 }
 async function submitTransaction(kind){
-  const cfg = getConfig();
   const date = document.getElementById('fDate-'+kind).value;
   const category = document.getElementById('fCategory-'+kind).value;
   const amount = parseFloat(document.getElementById('fAmount-'+kind).value);
@@ -744,12 +928,9 @@ async function submitTransaction(kind){
   if(!date || !amount || amount <= 0){ alert('Isi tanggal dan jumlah dengan benar.'); return; }
   statusEl.textContent = pendingFoto[kind] ? 'Mengunggah foto & menyimpan...' : 'Menyimpan...';
   try{
-    const payload = { pin: cfg.pin, action:'add', tanggal:date, tipe:kind, kategori:category, jumlah:amount, catatan:note };
+    const payload = { tanggal:date, tipe:kind, kategori:category, jumlah:amount, catatan:note };
     if(pendingFoto[kind]) payload.fotoBase64 = pendingFoto[kind];
-    const res = await fetchWithTimeout(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload) }, 25000);
-    const raw = await res.text();
-    const data = parseApiResponse_(raw, res);
-    if(!data.ok) throw new Error(data.error || 'Gagal menyimpan');
+    await apiCall('add', payload, 25000);
     document.getElementById('fAmount-'+kind).value = '';
     document.getElementById('fNote-'+kind).value = '';
     document.getElementById('fFoto-'+kind).value = '';
@@ -763,10 +944,9 @@ async function submitTransaction(kind){
   }
 }
 async function removeTransaction(id){
-  const cfg = getConfig();
   if(!confirm('Hapus transaksi ini?')) return;
   try{
-    await fetch(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ pin: cfg.pin, action:'delete', id }) });
+    await apiCall('delete', { id });
     await loadTransactions();
   }catch(err){ alert('Gagal hapus: ' + err.message); }
 }
@@ -776,22 +956,28 @@ async function testConnection(){
   if(!cfg.url || !cfg.pin){ el.textContent = '⚠ Isi & simpan URL/PIN dulu.'; return; }
   el.textContent = 'Menguji koneksi...';
   try{
-    const res = await fetchWithTimeout(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ pin: cfg.pin, action:'list' }) }, 15000);
-    const raw = await res.text();
-    let report = 'HTTP ' + res.status + ' | panjang respons: ' + raw.length + ' char\n';
-    try{
-      const data = JSON.parse(raw);
-      report += data.ok ? ('JSON valid ✓ | jumlah baris: ' + (data.rows ? data.rows.length : 0)) : ('JSON valid tapi ok:false | error: ' + data.error);
-    }catch(e){ report += 'GAGAL parse JSON. Awal respons mentah:\n' + raw.slice(0,300); }
-    el.style.whiteSpace = 'pre-wrap'; el.style.textAlign = 'left'; el.style.fontFamily = 'ui-monospace,monospace';
-    el.textContent = report;
+    const t0 = Date.now();
+    const data = await apiCall('list');
+    el.textContent = 'Koneksi OK ✓ | jumlah transaksi: ' + data.rows.length + ' | ' + (Date.now()-t0) + 'ms';
   }catch(err){
-    el.textContent = '⚠ Fetch gagal total: ' + err.message + (err.name==='AbortError' ? ' (timeout — cek Brave Shields/adblock/URL)' : '');
+    el.textContent = '⚠ Gagal: ' + err.message + (err.name==='AbortError' ? ' (timeout — cek Brave Shields/adblock/URL)' : '');
   }
 }
 
 // ================= FEEDBACK / SARAN AI (rule-based) =================
-function computeFeedback(monthTx){
+// Saldo kas berjalan = akumulasi SEMUA transaksi sejak awal pakai app, bukan
+// cuma bulan ini. Pemasukan nambah, pengeluaran (termasuk yang tabungan/
+// investasi, karena uangnya pindah keluar dari kas) ngurangin. Pencairan
+// investasi balik lagi jadi pemasukan, jadi otomatis nambah kas lagi.
+// Ini yang bikin sisa bulan lalu "nyambung" jadi modal bulan berikutnya.
+function computeSaldoKas(uptoDate){
+  return transactions.reduce((sum, t) => {
+    if(uptoDate && new Date(t.tanggal) > uptoDate) return sum;
+    return sum + (t.tipe === 'income' ? t.jumlah : -t.jumlah);
+  }, 0);
+}
+
+function computeFeedback(monthTx, saldoKasSebelumBulanIni){
   const income = monthTx.filter(t => t.tipe === 'income');
   const expense = monthTx.filter(t => t.tipe === 'expense');
   const expenseMurni = expense.filter(t => !CONFIG.savingCategories.includes(t.kategori));
@@ -800,7 +986,14 @@ function computeFeedback(monthTx){
   const totalExpense = expenseMurni.reduce((s,t) => s+t.jumlah, 0);
   const totalTabungan = expenseTabungan.reduce((s,t) => s+t.jumlah, 0);
   const pinjaman = income.filter(t => t.kategori === 'Pinjaman Masuk').reduce((s,t) => s+t.jumlah,0);
-  const selisih = totalIncome - totalExpense;
+  // selisihMurni: sisa income-expense TANPA nabung dihitung sebagai "beban" —
+  // dipakai buat nilai kesehatan cashflow (nabung itu pilihan bagus, bukan pemborosan).
+  const selisihMurni = totalIncome - totalExpense;
+  // deltaKas: uang yang beneran nambah/berkurang dari kas-di-tangan bulan ini —
+  // nabung/investasi DIKURANGI di sini karena uangnya fisik pindah keluar dari kas.
+  const deltaKas = totalIncome - totalExpense - totalTabungan;
+  const saldoKasSekarang = (saldoKasSebelumBulanIni||0) + deltaKas;
+  const selisih = selisihMurni; // alias biar kompatibel sama kode lain yang masih pakai nama ini
   const banners = [];
   let indicator = { level:'note', tagline:'⚪ Belum Ada Data Bulan Ini' };
 
@@ -810,19 +1003,23 @@ function computeFeedback(monthTx){
   Object.entries(catTotals).forEach(([k,v]) => { if(v > topVal){ topVal = v; topCat = k; } });
 
   if(totalTabungan > 0){
-    banners.push({ level:'info', text: 'Nabung/investasi bulan ini: ' + rupiah(totalTabungan) + ' — sudah pindah jadi aset, gak dihitung sebagai pengeluaran.' });
+    banners.push({ level:'info', text: 'Nabung/investasi bulan ini: ' + rupiah(totalTabungan) + ' — sudah pindah jadi aset, gak dihitung sebagai pengeluaran/pemborosan (tapi tetap ngurangin kas di tangan).' });
   }
   if(totalIncome === 0 && totalExpense === 0){
-    return { totalIncome, totalExpense, totalTabungan, selisih, banners, indicator };
+    return { totalIncome, totalExpense, totalTabungan, selisih, saldoKasSekarang, banners, indicator };
   }
-  if(selisih < 0){
-    indicator = { level:'danger', tagline:'🔴 Waspada, Cashflow Minus' };
-    banners.push({ level:'danger', text: 'Bulan ini defisit ' + rupiah(Math.abs(selisih)) + '.' + (topCat ? ' Kategori paling boros: ' + topCat + ' (' + rupiah(topVal) + ').' : '') + ' Coba tekan dulu yang non-pokok.' });
-  } else if(pinjaman > 0 && (selisih - pinjaman) < 0){
+  const bulanIniMinus = selisihMurni < 0;
+  if(bulanIniMinus && saldoKasSekarang < 0){
+    indicator = { level:'danger', tagline:'🔴 Waspada, Saldo Kas Minus' };
+    banners.push({ level:'danger', text: 'Bulan ini defisit ' + rupiah(Math.abs(selisihMurni)) + ', dan saldo kas totalmu (akumulasi dari awal) ikut minus jadi ' + rupiah(saldoKasSekarang) + '.' + (topCat ? ' Kategori paling boros bulan ini: ' + topCat + ' (' + rupiah(topVal) + ').' : '') + ' Ini perlu direm serius.' });
+  } else if(bulanIniMinus && saldoKasSekarang >= 0){
+    indicator = { level:'warn', tagline:'🟡 Bulan Ini Minus, Tapi Kas Total Masih Aman' };
+    banners.push({ level:'warn', text: 'Bulan ini defisit ' + rupiah(Math.abs(selisihMurni)) + ', tapi masih ketutup sisa bulan-bulan sebelumnya — saldo kas totalmu sekarang ' + rupiah(saldoKasSekarang) + '.' + (topCat ? ' Kategori paling boros bulan ini: ' + topCat + '.' : '') });
+  } else if(pinjaman > 0 && (selisihMurni - pinjaman) < 0){
     indicator = { level:'warn', tagline:'🟡 Surplus Semu (Ditopang Pinjaman)' };
-    banners.push({ level:'warn', text: 'Surplus ini sebenarnya ditopang pinjaman ' + rupiah(pinjaman) + ' — tanpa itu, cashflow asli kamu minus ' + rupiah(Math.abs(selisih - pinjaman)) + '.' });
+    banners.push({ level:'warn', text: 'Surplus ini sebenarnya ditopang pinjaman ' + rupiah(pinjaman) + ' — tanpa itu, cashflow asli kamu minus ' + rupiah(Math.abs(selisihMurni - pinjaman)) + '.' });
   } else {
-    const rate = totalIncome > 0 ? selisih / totalIncome : 0;
+    const rate = totalIncome > 0 ? selisihMurni / totalIncome : 0;
     if(rate <= 0.10){
       indicator = { level:'warn', tagline:'🟡 Tipis, Perlu Direm' };
       banners.push({ level:'warn', text: 'Sisa cuma ' + (rate*100).toFixed(1) + '% dari pemasukan, masih tipis dan rawan.' + (topCat ? ' Kategori terbesar: ' + topCat + '.' : '') });
@@ -837,21 +1034,32 @@ function computeFeedback(monthTx){
   if(topCat && totalExpense > 0 && (topVal/totalExpense) > 0.4){
     banners.push({ level:'note', text: 'Kategori "' + topCat + '" porsinya ' + ((topVal/totalExpense)*100).toFixed(0) + '% dari total pengeluaran — kelewat dominan dibanding kategori lain.' });
   }
-  return { totalIncome, totalExpense, totalTabungan, selisih, banners, indicator };
+  banners.push({ level:'note', text: 'Saldo kas total (akumulasi semua bulan sejak awal): ' + rupiah(saldoKasSekarang) + '.' });
+  return { totalIncome, totalExpense, totalTabungan, selisih, saldoKasSekarang, banners, indicator };
 }
 
 // ================= RENDER: DASHBOARD =================
 function renderDashboard(){
   renderQuoteOfTheDay();
   const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthTx = transactions.filter(t => { const d = new Date(t.tanggal); return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear(); });
-  const fb = computeFeedback(monthTx);
+  // Saldo kas SEBELUM bulan ini = akumulasi semua transaksi sebelum tanggal 1 bulan ini.
+  const saldoKasSebelumBulanIni = computeSaldoKas(new Date(startOfMonth.getTime() - 1));
+  const fb = computeFeedback(monthTx, saldoKasSebelumBulanIni);
 
   document.getElementById('aiTagline').textContent = fb.indicator.tagline;
   const aiCard = document.getElementById('aiCard');
   aiCard.className = 'card ai-card banner-' + (fb.indicator.level === 'note' ? 'note' : fb.indicator.level);
   const bwrap = document.getElementById('aiBannerWrap');
   bwrap.innerHTML = fb.banners.map(b => '<div style="font-size:13px;margin-top:4px;">' + escapeHtml(b.text) + '</div>').join('');
+
+  const saldoKasTotal = computeSaldoKas();
+  document.getElementById('saldoKasCard').innerHTML = `
+    <div class="neraca-label">Saldo Kas Saat Ini (akumulasi dari awal)</div>
+    <div class="neraca-big" style="color:${saldoKasTotal < 0 ? 'var(--coral)' : 'var(--lime-dark)'};">${rupiah(saldoKasTotal)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">Uang tunai yang masih bisa dipakai — sudah dikurangi yang dipindah ke tabungan/investasi, sudah ditambah pencairan aset.</div>
+  `;
 
   document.getElementById('dashStats').innerHTML = `
     <div class="stat"><div class="num" style="color:var(--lime-dark);">${rupiah(fb.totalIncome)}</div><div class="label">Pemasukan</div></div>
@@ -1032,7 +1240,6 @@ function toggleAssetForm(safeCat){
   document.getElementById('assetForm_'+safeCat).classList.toggle('open');
 }
 async function submitAssetTopUp(cat, safeCat){
-  const cfg = getConfig();
   const date = document.getElementById('assetDate_'+safeCat).value;
   const amount = parseFloat(document.getElementById('assetAmount_'+safeCat).value);
   const note = document.getElementById('assetNote_'+safeCat).value.trim();
@@ -1040,10 +1247,7 @@ async function submitAssetTopUp(cat, safeCat){
   if(!date || !amount || amount <= 0){ alert('Isi tanggal dan jumlah dengan benar.'); return; }
   statusEl.textContent = 'Menyimpan...';
   try{
-    const res = await fetchWithTimeout(cfg.url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ pin: cfg.pin, action:'add', tanggal:date, tipe:'expense', kategori:cat, jumlah:amount, catatan:note }) }, 15000);
-    const raw = await res.text();
-    const data = parseApiResponse_(raw, res);
-    if(!data.ok) throw new Error(data.error || 'Gagal menyimpan');
+    await apiCall('add', { tanggal:date, tipe:'expense', kategori:cat, jumlah:amount, catatan:note });
     statusEl.textContent = 'Tersimpan ✓';
     await loadTransactions();
   }catch(err){ statusEl.textContent = '⚠ ' + err.message; }
