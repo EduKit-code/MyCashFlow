@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cashflow Finance Mandiri</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#312E81; --ink-soft:#6B7280; --muted:#9CA3AF;
+    --bg:#F3F4F6; --card:#FFFFFF; --border:#D1D5DB; --track:#E4E7E9;
+    --lime:#84CC16; --lime-dark:#65A30D; --lime-bg:#ECFCCB;
+    --coral:#FB7185; --coral-bg:#FFE4E6;
+    --inv:#6366F1;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    min-height:100vh;
+  }
+  .eyebrow{font-size:11px;letter-spacing:.12em;color:var(--lime-dark);font-weight:700;text-transform:uppercase;margin-bottom:4px;}
+  h1{font-family:Georgia,'Times New Roman',serif;font-size:24px;margin:0;color:var(--ink);}
+  select,input,textarea{
+    width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+    font-size:14px;font-family:inherit;background:var(--card);color:var(--ink-soft);
+  }
+  label{display:block;font-size:11px;font-weight:700;color:var(--lime-dark);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.03em;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;}
+  .card h2{font-family:Georgia,serif;font-size:16px;margin:0 0 12px;color:var(--ink);}
+  .btn{padding:11px 18px;border-radius:8px;border:none;font-weight:700;font-size:14px;cursor:pointer;}
+  .btn-primary{background:var(--ink);color:#fff;width:100%;margin-top:14px;}
+  .btn-secondary{background:var(--card);border:1px solid var(--border);color:var(--ink-soft);}
+  .btn-small{padding:6px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--coral);cursor:pointer;}
+  .toggle-group{display:flex;gap:8px;margin-bottom:4px;}
+  .toggle-btn{flex:1;padding:9px 0;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--ink-soft);font-weight:700;font-size:13px;cursor:pointer;}
+  .toggle-btn.active-income{background:var(--lime-dark);color:#fff;border-color:var(--lime-dark);}
+  .toggle-btn.active-expense{background:var(--coral);color:#fff;border-color:var(--coral);}
+  .neraca{display:flex;gap:16px;flex-wrap:wrap;align-items:center;}
+  .neraca-col{flex:1 1 140px;min-width:130px;}
+  .neraca-label{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:6px;}
+  .bar-track{height:10px;border-radius:6px;background:var(--track);overflow:hidden;}
+  .bar-fill{height:100%;border-radius:6px;}
+  .neraca-value{margin-top:6px;font-family:ui-monospace,monospace;font-size:15px;font-weight:700;}
+  .neraca-big{font-family:ui-monospace,monospace;font-size:22px;font-weight:800;margin-top:2px;}
+  .banner{margin-top:4px;font-size:13px;font-weight:600;padding:12px 14px;border-radius:10px;line-height:1.5;}
+  .banner-danger{background:var(--coral-bg);border:1px solid var(--coral);color:#9F1239;}
+  .banner-warn{background:#FEF3C7;border:1px solid #F59E0B;color:#92400E;}
+  .banner-ok{background:var(--lime-bg);border:1px solid var(--lime);color:#3F6212;}
+  .banner-info{background:#E0F2FE;border:1px solid #38BDF8;color:#075985;}
+  .banner-note{background:var(--bg);border:1px solid var(--border);color:var(--ink-soft);font-weight:500;margin-top:8px;}
+  .empty{font-size:13px;color:var(--muted);font-style:italic;padding:6px 0;}
+  .ledger-row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--track);font-size:13px;}
+  .ledger-date{font-family:ui-monospace,monospace;color:var(--muted);width:42px;flex-shrink:0;}
+  .ledger-mid{flex:1;min-width:0;}
+  .ledger-cat{font-weight:700;color:var(--ink);}
+  .ledger-note{font-size:11px;color:var(--muted);}
+  .ledger-foto{font-size:11px;}
+  .ledger-foto a{color:#38BDF8;text-decoration:none;font-weight:700;}
+  .ledger-amt{font-family:ui-monospace,monospace;font-weight:700;white-space:nowrap;}
+  .del-btn{border:none;background:none;color:var(--lime-dark);font-size:17px;cursor:pointer;}
+  table.pivot{width:100%;border-collapse:collapse;font-size:12px;}
+  table.pivot th{background:var(--ink);color:#fff;padding:6px 8px;text-align:right;white-space:nowrap;}
+  table.pivot td{padding:6px 8px;border-bottom:1px solid var(--track);text-align:right;color:var(--ink-soft);font-family:ui-monospace,monospace;}
+  table.pivot td:first-child, table.pivot th:first-child{text-align:left;font-weight:700;color:var(--ink);font-family:inherit;}
+  .status{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;min-height:14px;}
+  .setup-wrap{max-width:340px;margin:0 auto;}
+  #chartWrap{height:220px;}
+  select#monthSel-income, select#monthSel-expense{width:auto;display:inline-block;margin-bottom:12px;}
+  .cat-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--track);font-size:13px;}
+  .cat-row span{flex:1;}
+  .cat-row label.inline{display:flex;align-items:center;gap:4px;margin:0;font-size:11px;color:var(--ink-soft);text-transform:none;font-weight:500;}
+  .cat-row label.inline input[type=checkbox]{width:auto;}
+  .add-row{display:flex;gap:8px;margin-top:8px;}
+  .add-row input{flex:1;}
+  .add-row button{flex-shrink:0;width:auto;padding:10px 14px;}
+
+  /* ---------- login / setup ---------- */
+  .login-screen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:var(--ink);padding:20px;
+  }
+  .login-box{background:#fff;border-radius:16px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.25);}
+  .login-box .eyebrow{text-align:center;}
+  .login-box h1{margin:0 0 4px;}
+  .login-box p.sub{color:#666;font-size:13px;margin:0 0 16px;}
+
+  /* ---------- app shell / drawer ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;
+    background:var(--ink);color:#fff;padding:14px 16px;
+  }
+  .topbar span#pageTitle{font-size:17px;font-weight:700;flex:1;font-family:Georgia,serif;}
+  .hamburger,.refresh-btn{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:4px 8px;}
+  .drawer{
+    position:fixed;top:0;left:-280px;width:260px;height:100%;
+    background:var(--ink);color:#fff;z-index:30;transition:left .22s ease;overflow-y:auto;
+  }
+  .drawer.open{left:0;}
+  .drawer-header{display:flex;align-items:center;justify-content:space-between;padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.15);}
+  .drawer-header .logo{font-weight:800;font-size:16px;font-family:Georgia,serif;}
+  .drawer-close{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;}
+  .menu{list-style:none;margin:0;padding:8px 0;}
+  .menu li{padding:13px 20px;cursor:pointer;font-size:14px;font-weight:600;border-left:4px solid transparent;}
+  .menu li:hover,.menu li.active{background:rgba(255,255,255,.1);border-left-color:var(--lime);}
+  #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:25;}
+  #overlay.show{display:block;}
+  .content{padding:16px 14px 60px;max-width:720px;margin:0 auto;}
+
+  /* ---------- dashboard ---------- */
+  .quote-card{background:linear-gradient(135deg,var(--ink),var(--lime-dark));color:#fff;}
+  .quote-text{font-size:15px;font-style:italic;line-height:1.55;margin:0 0 8px;}
+  .quote-source{font-size:12px;opacity:.85;margin:0;text-align:right;}
+  .ai-card{border-width:2px;}
+  .ai-tagline{font-size:15px;font-weight:800;margin:0 0 6px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .stat{text-align:center;background:var(--bg);border-radius:10px;padding:10px 4px;}
+  .stat .num{font-size:16px;font-weight:800;color:var(--ink);font-family:ui-monospace,monospace;}
+  .stat .label{font-size:10px;color:var(--ink-soft);margin-top:2px;}
+
+  /* ---------- investasi ---------- */
+  .asset-card{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 0;border-bottom:1px solid var(--track);}
+  .asset-card:last-child{border-bottom:none;}
+  .asset-name{font-weight:800;font-size:15px;color:var(--ink);}
+  .asset-detail{font-size:11px;color:var(--muted);margin-top:2px;}
+  .asset-total{font-family:ui-monospace,monospace;font-weight:800;font-size:16px;color:var(--inv);text-align:right;}
+  .asset-add-form{margin-top:10px;padding-top:10px;border-top:1px dashed var(--track);display:none;}
+  .asset-add-form.open{display:block;}
+
+  /* ---------- tema ---------- */
+  .theme-swatch{display:flex;align-items:center;gap:10px;padding:10px;border:2px solid var(--track);border-radius:10px;margin-bottom:8px;cursor:pointer;}
+  .theme-swatch.selected{border-color:var(--lime-dark);}
+  .swatch-dots{display:flex;}
+  .swatch-dots span{width:20px;height:20px;border-radius:50%;margin-left:-6px;border:2px solid #fff;}
+
+  @media (min-width:860px){
+    #overlay{display:none !important;}
+    .drawer{left:0;box-shadow:2px 0 12px rgba(0,0,0,.08);}
+    .topbar .hamburger{display:none;}
+    .content{margin-left:280px;max-width:760px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="setupScreen" class="login-screen">
+  <div class="login-box">
+    <div class="eyebrow">Masuk</div>
+    <h1>💰 Cashflow Finance Mandiri</h1>
+    <p class="sub">Masukkan PIN untuk mulai</p>
+    <label>PIN</label>
+    <input id="setupPin" type="password" placeholder="PIN kamu" onkeydown="if(event.key==='Enter')saveSetup()">
+    <button class="btn btn-primary" onclick="saveSetup()">Masuk</button>
+    <div id="setupStatus" class="status"></div>
+    <div class="status">PIN disimpan di browser HP ini saja. Kategori, tema, dan saldo investasi disimpan di Sheet-mu, jadi otomatis sinkron di device lain yang pakai PIN sama.</div>
+  </div>
+</div>
+
+<div id="onboardScreen" class="login-screen" style="display:none;">
+  <div class="login-box" style="max-width:400px;">
+    <div class="eyebrow">Setup Awal</div>
+    <h1 style="font-size:19px;">Kategori Kamu Apa Aja?</h1>
+    <p class="sub">Belum ada kategori tersimpan. Isi sesuai kondisi kamu sendiri — bebas, gak ada bawaan/default yang harus dipakai.</p>
+
+    <div id="onboardStep1">
+      <label style="text-align:left;">Sumber Pemasukan (satu per baris)</label>
+      <textarea id="obIncome" rows="4" style="text-align:left;" placeholder="Gaji&#10;Hasil Konten (Youtube/X)&#10;Freelance&#10;Bonus"></textarea>
+      <label style="text-align:left;">Jenis Pengeluaran & Alokasi Aset (satu per baris)</label>
+      <textarea id="obExpense" rows="4" style="text-align:left;" placeholder="Kebutuhan Pokok&#10;Transportasi&#10;Tabungan Bulanan&#10;Investasi Saham"></textarea>
+      <button class="btn btn-primary" onclick="onboardNext()">Lanjut</button>
+    </div>
+
+    <div id="onboardStep2" style="display:none;text-align:left;">
+      <p style="font-size:13px;color:#666;text-align:left;">Dari daftar pengeluaran tadi, mana aja yang sebenarnya <b>bukan pengeluaran habis</b> — tapi setoran ke aset (nabung/invest)?</p>
+      <div id="obSavingList"></div>
+      <button class="btn btn-primary" onclick="onboardFinish()">Selesai & Mulai</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="onboardBack()">← Kembali</button>
+    </div>
+    <div id="onboardStatus" class="status"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <div id="overlay" onclick="closeDrawer()"></div>
+
+  <nav id="drawer" class="drawer">
+    <div class="drawer-header">
+      <span class="logo">💰 Cashflow</span>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <ul class="menu" id="menuList">
+      <li data-page="dashboard" onclick="switchPage('dashboard')">🏠 Dashboard</li>
+      <li data-page="income" onclick="switchPage('income')">🟢 Pemasukan</li>
+      <li data-page="expense" onclick="switchPage('expense')">🔴 Pengeluaran</li>
+      <li data-page="invest" onclick="switchPage('invest')">📈 Investasi</li>
+      <li data-page="settings" onclick="switchPage('settings')">⚙️ Pengaturan</li>
+    </ul>
+  </nav>
+
+  <header class="topbar">
+    <button class="hamburger" onclick="openDrawer()">☰</button>
+    <span id="pageTitle">Dashboard</span>
+    <button class="refresh-btn" onclick="loadTransactions()">⟳</button>
+  </header>
+
+  <main class="content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="page-dashboard">
+      <div class="card quote-card">
+        <p class="quote-text" id="quoteTeks">–</p>
+        <p class="quote-source" id="quoteSumber"></p>
+      </div>
+
+      <div class="card ai-card" id="aiCard">
+        <p class="ai-tagline" id="aiTagline">Memuat…</p>
+        <div id="aiBannerWrap"></div>
+      </div>
+
+      <div class="card" id="saldoKasCard">
+        <div class="neraca-label">Saldo Kas Saat Ini (akumulasi dari awal)</div>
+        <div class="neraca-big">–</div>
+      </div>
+
+      <div class="card">
+        <h2>Ringkasan Bulan Ini</h2>
+        <div class="grid-3" id="dashStats">
+          <div class="stat"><div class="num">–</div><div class="label">Pemasukan</div></div>
+          <div class="stat"><div class="num">–</div><div class="label">Pengeluaran</div></div>
+          <div class="stat"><div class="num">–</div><div class="label">Tabungan</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Tren Pemasukan vs Pengeluaran</h2>
+        <div id="chartWrap"><canvas id="trendChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Aset Terkumpul (Tabungan/Investasi)</h2>
+        <div id="assetSummaryWrap"></div>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h2>Pivot Pengeluaran per Kategori × Bulan</h2>
+        <div id="pivotWrap"></div>
+      </div>
+    </div>
+
+    <!-- ===== PEMASUKAN ===== -->
+    <div id="page-income" style="display:none;">
+      <div class="card">
+        <h2>Catat Pemasukan</h2>
+        <select id="monthSel-income" onchange="renderLedger('income')"></select>
+        <label>Tanggal</label>
+        <input id="fDate-income" type="date">
+        <label>Kategori</label>
+        <select id="fCategory-income"></select>
+        <label>Jumlah (Rp)</label>
+        <input id="fAmount-income" type="number" min="0" placeholder="cth. 150000">
+        <label>Catatan (opsional)</label>
+        <input id="fNote-income" type="text" placeholder="cth. Komisi Shopee Affiliate">
+        <label>Foto Bukti (opsional)</label>
+        <input id="fFoto-income" type="file" accept="image/*" onchange="handleFotoPick(event,'income')">
+        <div id="fotoPreviewStatus-income" class="status"></div>
+        <button class="btn btn-primary" style="background:var(--lime-dark);" onclick="submitTransaction('income')">Simpan Pemasukan</button>
+        <div id="submitStatus-income" class="status"></div>
+      </div>
+      <div class="card">
+        <h2>Rincian Kategori</h2>
+        <div id="categoryBreakdown-income"></div>
+      </div>
+      <div class="card">
+        <h2>Daftar Pemasukan</h2>
+        <div id="ledger-income"></div>
+      </div>
+    </div>
+
+    <!-- ===== PENGELUARAN ===== -->
+    <div id="page-expense" style="display:none;">
+      <div class="card">
+        <h2>Catat Pengeluaran</h2>
+        <select id="monthSel-expense" onchange="renderLedger('expense')"></select>
+        <label>Tanggal</label>
+        <input id="fDate-expense" type="date">
+        <label>Kategori</label>
+        <select id="fCategory-expense"></select>
+        <label>Jumlah (Rp)</label>
+        <input id="fAmount-expense" type="number" min="0" placeholder="cth. 150000">
+        <label>Catatan (opsional)</label>
+        <input id="fNote-expense" type="text" placeholder="cth. Belanja bulanan">
+        <label>Foto Bukti (opsional)</label>
+        <input id="fFoto-expense" type="file" accept="image/*" onchange="handleFotoPick(event,'expense')">
+        <div id="fotoPreviewStatus-expense" class="status"></div>
+        <button class="btn btn-primary" style="background:var(--coral);" onclick="submitTransaction('expense')">Simpan Pengeluaran</button>
+        <div id="submitStatus-expense" class="status"></div>
+      </div>
+      <div class="card">
+        <h2>Rincian Kategori</h2>
+        <div id="categoryBreakdown-expense"></div>
+      </div>
+      <div class="card">
+        <h2>Daftar Pengeluaran</h2>
+        <div id="ledger-expense"></div>
+      </div>
+    </div>
+
+    <!-- ===== INVESTASI ===== -->
+    <div id="page-invest" style="display:none;">
+      <div class="card">
+        <h2>Total Aset Investasi/Tabungan</h2>
+        <div id="investGrandTotal" class="neraca-big" style="color:var(--inv);">Rp 0</div>
+      </div>
+      <div class="card">
+        <h2>Aset Saya</h2>
+        <div id="investList"></div>
+        <div class="status" style="margin-top:8px;">Mau tambah instrumen investasi baru atau ubah saldo awal? Buka menu <b>Pengaturan</b>.</div>
+      </div>
+    </div>
+
+    <!-- ===== PENGATURAN ===== -->
+    <div id="page-settings" style="display:none;">
+      <div class="card">
+        <h2>Tema / Template Tampilan</h2>
+        <p style="font-size:13px;color:var(--ink-soft);">Pilih kombinasi warna, langsung diterapkan ke seluruh halaman.</p>
+        <div id="listTema"></div>
+      </div>
+
+      <div class="card">
+        <h2>Kustom Warna Sendiri</h2>
+        <label>Warna Utama</label>
+        <input id="cPrimary" type="color" value="#312E81">
+        <label>Warna Aksen</label>
+        <input id="cAccent" type="color" value="#84CC16">
+        <label>Warna Latar</label>
+        <input id="cBg" type="color" value="#F3F4F6">
+        <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="simpanTemaKustom()">🎨 Terapkan & Simpan Tema Kustom</button>
+      </div>
+
+      <div class="card">
+        <h2>Ganti PIN</h2>
+        <p style="font-size:13px;color:var(--ink-soft);margin:0 0 4px;">Ganti PIN masuk aplikasi. Berlaku buat semua device yang pakai app ini, jadi harus tau PIN lama dulu.</p>
+        <label>PIN Lama</label>
+        <input id="oldPin" type="password" placeholder="PIN yang lagi dipakai sekarang">
+        <label>PIN Baru</label>
+        <input id="newPin" type="password" placeholder="minimal 4 karakter">
+        <label>Ulangi PIN Baru</label>
+        <input id="newPinConfirm" type="password" placeholder="ketik ulang PIN baru">
+        <button class="btn btn-primary" onclick="changePin()">Ganti PIN</button>
+        <div id="pinStatus" class="status"></div>
+      </div>
+
+      <div class="card">
+        <h2>Koneksi</h2>
+        <button class="btn btn-secondary" style="width:100%;" onclick="loadTransactions()">Muat Ulang Data dari Sheet</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="testConnection()">Tes Koneksi (diagnostik)</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:8px;color:var(--coral);" onclick="logoutApp()">Keluar (Lupakan PIN di Device Ini)</button>
+        <div id="settingsStatus" class="status"></div>
+      </div>
+
+      <div class="card">
+        <h2>Kategori Pemasukan</h2>
+        <div class="status" style="margin:0 0 6px;text-align:left;">Kalau kategori pemasukan tertentu sebenarnya <b>uang cair dari investasi/tabungan</b> (bukan penghasilan baru), pilih di dropdown sebelah nama kategori itu aset mana yang dicairkan — otomatis mengurangi total aset di menu Investasi & Dashboard.</div>
+        <div id="incomeCatList"></div>
+        <div class="add-row">
+          <input id="newIncomeCat" type="text" placeholder="Kategori pemasukan baru">
+          <button class="btn btn-secondary" onclick="addCategory('income')">+ Tambah</button>
+        </div>
+        <button class="btn-small" style="width:100%;margin-top:10px;padding:8px;" onclick="clearAllCategories('income')">Hapus Semua Kategori Pemasukan</button>
+      </div>
+
+      <div class="card">
+        <h2>Kategori Pengeluaran</h2>
+        <div class="status" style="margin:0 0 6px;text-align:left;">Centang "Ini tabungan/investasi" kalau kategori tsb adalah pindah aset (emas, RDPT, dll) — otomatis dikeluarkan dari hitungan surplus/defisit dan muncul di menu Investasi.</div>
+        <div id="expenseCatList"></div>
+        <div class="add-row">
+          <input id="newExpenseCat" type="text" placeholder="Kategori pengeluaran baru">
+          <button class="btn btn-secondary" onclick="addCategory('expense')">+ Tambah</button>
+        </div>
+        <button class="btn-small" style="width:100%;margin-top:10px;padding:8px;" onclick="clearAllCategories('expense')">Hapus Semua Kategori Pengeluaran</button>
+      </div>
+
+      <div class="card">
+
+        <h2>Saldo Awal Tabungan/Investasi</h2>
+        <div class="status" style="margin:0 0 6px;text-align:left;">Isi sekali sesuai saldo yang udah ada sekarang untuk tiap instrumen. Setelahnya tinggal catat setoran seperti biasa lewat menu Investasi.</div>
+        <div id="saldoAwalWrap"></div>
+        <button class="btn btn-primary" onclick="saveAssetConfig()">Simpan Saldo Awal</button>
+        <div id="assetConfigStatus" class="status"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ================= CONFIG & STATE =================
+let CONFIG = { incomeCategories:[], expenseCategories:[], savingCategories:[], cairanMap:{}, saldoAwal:{}, theme:null };
+const MONTHS_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const YEAR = new Date().getFullYear();
+let transactions = [];
+let trendChartInstance = null;
+let pendingFoto = { income:null, expense:null };
+let currentPage = 'dashboard';
+
+function rupiah(n){
+  const neg = n < 0; const abs = Math.abs(Math.round(n));
+  return (neg?'-Rp ':'Rp ') + abs.toLocaleString('id-ID');
+}
+function todayISO(){
+  const d = new Date();
+  const tz = d.getTimezoneOffset()*60000;
+  return new Date(d - tz).toISOString().slice(0,10);
+}
+function getConfig(){
+  return { pin: localStorage.getItem('cf_pin') };
+}
+// Bungkus google.script.run jadi Promise supaya bisa dipakai dengan async/await
+// seperti fetch() sebelumnya — nggak perlu ubah struktur fungsi-fungsi lain.
+function gsRun(funcName, ...args){
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler(resolve)
+      .withFailureHandler(err => reject(new Error(err && err.message ? err.message : String(err))))
+      [funcName](...args);
+  });
+}
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escapeAttr(s){ return String(s).replace(/'/g, "\\'"); }
+
+// ================= SETUP =================
+async function saveSetup(){
+  const pin = document.getElementById('setupPin').value.trim();
+  const statusEl = document.getElementById('setupStatus');
+  if(!pin){ statusEl.textContent = '⚠ Isi PIN dulu ya.'; return; }
+  statusEl.textContent = 'Memeriksa PIN...';
+  try{
+    await gsRun('apiGetConfig', pin); // dipakai sekaligus buat validasi PIN benar/salah
+    localStorage.setItem('cf_pin', pin);
+    statusEl.textContent = '';
+    initApp();
+  }catch(err){
+    statusEl.textContent = '⚠ ' + err.message;
+  }
+}
+async function changePin(){
+  const cfg = getConfig();
+  const oldPin = document.getElementById('oldPin').value.trim();
+  const newPin = document.getElementById('newPin').value.trim();
+  const newPinConfirm = document.getElementById('newPinConfirm').value.trim();
+  const statusEl = document.getElementById('pinStatus');
+  if(!oldPin || !newPin){ statusEl.textContent = '⚠ Isi PIN lama dan PIN baru.'; return; }
+  if(newPin.length < 4){ statusEl.textContent = '⚠ PIN baru minimal 4 karakter.'; return; }
+  if(newPin !== newPinConfirm){ statusEl.textContent = '⚠ Konfirmasi PIN baru tidak cocok.'; return; }
+  statusEl.textContent = 'Mengganti PIN...';
+  try{
+    await gsRun('apiChangePin', oldPin || cfg.pin, newPin);
+    localStorage.setItem('cf_pin', newPin);
+    document.getElementById('oldPin').value = '';
+    document.getElementById('newPin').value = '';
+    document.getElementById('newPinConfirm').value = '';
+    statusEl.textContent = 'PIN berhasil diganti ✓ (berlaku buat semua device)';
+  }catch(err){ statusEl.textContent = '⚠ ' + err.message; }
+}
+function logoutApp(){
+  if(!confirm('Keluar dan lupakan PIN di device ini?')) return;
+  localStorage.removeItem('cf_pin');
+  location.reload();
+}
+
+// ================= DRAWER / NAVIGATION =================
+function openDrawer(){ document.getElementById('drawer').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+
+const PAGE_TITLES = { dashboard:'Dashboard', income:'Pemasukan', expense:'Pengeluaran', invest:'Investasi', settings:'Pengaturan' };
+function switchPage(page){
+  currentPage = page;
+  ['dashboard','income','expense','invest','settings'].forEach(p => {
+    document.getElementById('page-'+p).style.display = (p===page) ? 'block' : 'none';
+  });
+  document.querySelectorAll('.menu li').forEach(li => li.classList.toggle('active', li.dataset.page === page));
+  document.getElementById('pageTitle').textContent = PAGE_TITLES[page];
+  closeDrawer();
+  if(page === 'dashboard') renderDashboard();
+  if(page === 'income') renderLedger('income');
+  if(page === 'expense') renderLedger('expense');
+  if(page === 'invest') renderInvest();
+  if(page === 'settings'){ renderCategorySettings(); renderSaldoAwalInputs(); renderThemeSettings(); }
+}
+
+// ================= REMOTE CONFIG =================
+async function loadRemoteConfig(){
+  const cfg = getConfig();
+  if(!cfg.pin) return;
+  try{
+    const config = await gsRun('apiGetConfig', cfg.pin);
+    CONFIG = Object.assign({incomeCategories:[],expenseCategories:[],savingCategories:[],cairanMap:{},saldoAwal:{},theme:null}, config);
+    applyTheme(resolveTheme(CONFIG.theme));
+    populateCategorySelect('income');
+    populateCategorySelect('expense');
+  }catch(err){
+    document.getElementById('settingsStatus').textContent = '⚠ Gagal memuat kategori/config: ' + err.message;
+  }
+}
+// Antrian sederhana: kalau ada beberapa perubahan config diklik cepat-cepet
+// (misal Hapus kategori berkali-kali), tiap panggilan HARUS nunggu yang
+// sebelumnya beres dulu baru jalan — supaya gak ada yang kerja pakai data
+// CONFIG yang udah basi lalu nimpa balik perubahan yang barusan disimpan.
+let configMutex = Promise.resolve();
+async function saveRemoteConfig(partial){
+  const run = configMutex.then(async () => {
+    const cfg = getConfig();
+    const config = await gsRun('apiSaveConfig', cfg.pin, partial);
+    CONFIG = Object.assign({incomeCategories:[],expenseCategories:[],savingCategories:[],cairanMap:{},saldoAwal:{},theme:null}, config);
+    return CONFIG;
+  });
+  configMutex = run.catch(() => {});
+  return run;
+}
+// Buat perubahan yang HITUNGANNYA bergantung ke isi CONFIG (hapus/tambah
+// kategori, toggle saving, dst) — updater(latestConfig) dipanggil pas giliran
+// antrian ini beneran jalan, bukan pas tombolnya diklik, jadi selalu pakai
+// data paling baru walau ada beberapa klik numpuk cepat-cepat.
+async function mutateConfig(updater){
+  const run = configMutex.then(async () => {
+    const cfg = getConfig();
+    const partial = updater(CONFIG);
+    const config = await gsRun('apiSaveConfig', cfg.pin, partial);
+    CONFIG = Object.assign({incomeCategories:[],expenseCategories:[],savingCategories:[],cairanMap:{},saldoAwal:{},theme:null}, config);
+    return CONFIG;
+  });
+  configMutex = run.catch(() => {});
+  return run;
+}
+
+// ================= KATEGORI (Pengaturan) =================
+function renderCategorySettings(){
+  const incWrap = document.getElementById('incomeCatList');
+  incWrap.innerHTML = '';
+  CONFIG.incomeCategories.forEach(cat => {
+    const currentMap = CONFIG.cairanMap[cat] || '';
+    const row = document.createElement('div'); row.className = 'cat-row';
+    let pencairanHtml = '';
+    if(CONFIG.savingCategories.length > 0){
+      const options = ['<option value="">Bukan pencairan</option>'].concat(
+        CONFIG.savingCategories.map(sc => '<option value="'+escapeAttr(sc)+'" '+(currentMap===sc?'selected':'')+'>Pencairan dari: '+escapeHtml(sc)+'</option>')
+      ).join('');
+      pencairanHtml = '<select style="width:auto;font-size:11px;padding:5px 6px;" onchange="updateCairanMap(\''+escapeAttr(cat)+'\', this.value)">'+options+'</select>';
+    }
+    row.innerHTML = '<span>'+escapeHtml(cat)+'</span>' + pencairanHtml + '<button class="btn-small" onclick="removeCategory(\'income\',\''+escapeAttr(cat)+'\')">Hapus</button>';
+    incWrap.appendChild(row);
+  });
+  const expWrap = document.getElementById('expenseCatList');
+  expWrap.innerHTML = '';
+  CONFIG.expenseCategories.forEach(cat => {
+    const isSaving = CONFIG.savingCategories.includes(cat);
+    const row = document.createElement('div'); row.className = 'cat-row';
+    row.innerHTML =
+      '<span>'+escapeHtml(cat)+'</span>' +
+      '<label class="inline"><input type="checkbox" '+(isSaving?'checked':'')+' onchange="toggleSavingCategory(\''+escapeAttr(cat)+'\', this.checked)"> Ini tabungan/investasi</label>' +
+      '<button class="btn-small" onclick="removeCategory(\'expense\',\''+escapeAttr(cat)+'\')">Hapus</button>';
+    expWrap.appendChild(row);
+  });
+}
+async function updateCairanMap(incomeCat, savingCat){
+  try{
+    await mutateConfig(latest => {
+      const updated = Object.assign({}, latest.cairanMap);
+      if(savingCat) updated[incomeCat] = savingCat;
+      else delete updated[incomeCat];
+      return { cairanMap: updated };
+    });
+    renderAssetSummary();
+  }catch(err){ alert('Gagal update: ' + err.message); renderCategorySettings(); }
+}
+async function addCategory(kind){
+  const inputId = kind === 'income' ? 'newIncomeCat' : 'newExpenseCat';
+  const input = document.getElementById(inputId);
+  const val = input.value.trim();
+  if(!val) return;
+  const key = kind === 'income' ? 'incomeCategories' : 'expenseCategories';
+  if(CONFIG[key].includes(val)){ alert('Kategori itu sudah ada.'); return; }
+  try{
+    await mutateConfig(latest => {
+      if(latest[key].includes(val)) return {}; // udah ada (misal ke-tambah dobel), gak usah ubah apa-apa
+      return { [key]: latest[key].concat([val]) };
+    });
+    input.value = '';
+    renderCategorySettings(); renderSaldoAwalInputs(); populateCategorySelect(kind);
+  }catch(err){ alert('Gagal menambah kategori: ' + err.message); }
+}
+async function removeCategory(kind, cat){
+  if(!confirm('Hapus kategori "'+cat+'"? Transaksi lama dengan kategori ini tidak ikut terhapus.')) return;
+  const key = kind === 'income' ? 'incomeCategories' : 'expenseCategories';
+  try{
+    await mutateConfig(latest => {
+      const payload = { [key]: latest[key].filter(c => c !== cat) };
+      if(kind === 'expense' && latest.savingCategories.includes(cat)){
+        payload.savingCategories = latest.savingCategories.filter(c => c !== cat);
+      }
+      return payload;
+    });
+    renderCategorySettings(); renderSaldoAwalInputs(); populateCategorySelect(kind);
+  }catch(err){ alert('Gagal menghapus kategori: ' + err.message); }
+}
+async function clearAllCategories(kind){
+  const label = kind === 'income' ? 'pemasukan' : 'pengeluaran';
+  if(!confirm('Hapus SEMUA kategori '+label+'? Transaksi lama tidak ikut terhapus, cuma daftar kategorinya aja yang dikosongkan.')) return;
+  const key = kind === 'income' ? 'incomeCategories' : 'expenseCategories';
+  try{
+    await mutateConfig(latest => {
+      const payload = { [key]: [] };
+      if(kind === 'expense'){ payload.savingCategories = []; payload.saldoAwal = {}; payload.cairanMap = {}; }
+      if(kind === 'income'){ payload.cairanMap = {}; }
+      return payload;
+    });
+    renderCategorySettings(); renderSaldoAwalInputs(); populateCategorySelect(kind);
+  }catch(err){ alert('Gagal menghapus semua kategori: ' + err.message); }
+}
+async function toggleSavingCategory(cat, checked){
+  try{
+    await mutateConfig(latest => {
+      let updated = latest.savingCategories.slice();
+      if(checked && !updated.includes(cat)) updated.push(cat);
+      if(!checked) updated = updated.filter(c => c !== cat);
+      return { savingCategories: updated };
+    });
+    renderSaldoAwalInputs();
+  }catch(err){ alert('Gagal update: ' + err.message); renderCategorySettings(); }
+}
+function renderSaldoAwalInputs(){
+  const wrap = document.getElementById('saldoAwalWrap');
+  wrap.innerHTML = '';
+  if(CONFIG.savingCategories.length === 0){
+    wrap.innerHTML = '<div class="empty">Belum ada kategori yang ditandai sebagai tabungan/investasi. Tandai dulu di card "Kategori Pengeluaran" di atas.</div>';
+    return;
+  }
+  CONFIG.savingCategories.forEach(cat => {
+    const label = document.createElement('label'); label.textContent = 'Saldo Awal ' + cat;
+    const input = document.createElement('input');
+    input.type = 'number'; input.min = '0'; input.dataset.cat = cat;
+    input.id = 'saldoAwal_' + cat.replace(/[^a-zA-Z0-9]/g,'_');
+    input.value = CONFIG.saldoAwal[cat] || '';
+    wrap.appendChild(label); wrap.appendChild(input);
+  });
+}
+async function saveAssetConfig(){
+  const saldoAwal = {};
+  CONFIG.savingCategories.forEach(cat => {
+    const el = document.getElementById('saldoAwal_' + cat.replace(/[^a-zA-Z0-9]/g,'_'));
+    saldoAwal[cat] = parseFloat(el.value) || 0;
+  });
+  try{
+    await saveRemoteConfig({ saldoAwal });
+    document.getElementById('assetConfigStatus').textContent = 'Tersimpan ✓';
+    setTimeout(() => { document.getElementById('assetConfigStatus').textContent = ''; }, 2000);
+  }catch(err){ document.getElementById('assetConfigStatus').textContent = '⚠ ' + err.message; }
+}
+
+// ================= TEMA =================
+const THEME_PRESETS = {
+  lime_ink:   { key:'lime_ink',   name:'Lime Ink (Default)', ink:'#312E81', inkSoft:'#6B7280', muted:'#9CA3AF', bg:'#F3F4F6', card:'#FFFFFF', border:'#D1D5DB', track:'#E4E7E9', lime:'#84CC16', limeDark:'#65A30D', limeBg:'#ECFCCB' },
+  teal_ocean: { key:'teal_ocean', name:'Teal Ocean',         ink:'#0f3d3e', inkSoft:'#4b6664', muted:'#8aa4a1', bg:'#eef4f3', card:'#FFFFFF', border:'#d7e3e1', track:'#e3edeb', lime:'#2dd4bf', limeDark:'#0d9488', limeBg:'#ccfbf1' },
+  maroon_cream:{key:'maroon_cream',name:'Maroon Cream',      ink:'#5c1a2b', inkSoft:'#7a5a5f', muted:'#b09aa0', bg:'#fbf6ef', card:'#FFFFFF', border:'#e6dccb', track:'#f1e8d9', lime:'#d4a24c', limeDark:'#b3811f', limeBg:'#faecd1' },
+  dark_mode:  { key:'dark_mode',  name:'Dark Mode',          ink:'#e5e7eb', inkSoft:'#9ca3af', muted:'#6b7280', bg:'#1f2937', card:'#111827', border:'#374151', track:'#283244', lime:'#a3e635', limeDark:'#84cc16', limeBg:'#26331a' }
+};
+function isDarkHex(hex){
+  const c = hex.replace('#','');
+  const r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
+  return (0.299*r + 0.587*g + 0.114*b) < 128;
+}
+function resolveTheme(themeCfg){
+  if(!themeCfg || !themeCfg.presetKey) return THEME_PRESETS.lime_ink;
+  if(themeCfg.presetKey === 'custom' && themeCfg.custom){
+    const c = themeCfg.custom;
+    const dark = isDarkHex(c.bg || '#F3F4F6');
+    const neutrals = dark ? THEME_PRESETS.dark_mode : THEME_PRESETS.lime_ink;
+    return {
+      key:'custom', name:'Kustom',
+      ink: c.ink || neutrals.ink, lime: c.lime || neutrals.lime,
+      bg: c.bg || neutrals.bg,
+      inkSoft: neutrals.inkSoft, muted: neutrals.muted, card: dark ? '#111827' : '#FFFFFF',
+      border: neutrals.border, track: neutrals.track,
+      limeDark: c.lime || neutrals.limeDark, limeBg: neutrals.limeBg
+    };
+  }
+  return THEME_PRESETS[themeCfg.presetKey] || THEME_PRESETS.lime_ink;
+}
+function applyTheme(t){
+  const r = document.documentElement.style;
+  r.setProperty('--ink', t.ink);
+  r.setProperty('--ink-soft', t.inkSoft);
+  r.setProperty('--muted', t.muted);
+  r.setProperty('--bg', t.bg);
+  r.setProperty('--card', t.card);
+  r.setProperty('--border', t.border);
+  r.setProperty('--track', t.track);
+  r.setProperty('--lime', t.lime);
+  r.setProperty('--lime-dark', t.limeDark);
+  r.setProperty('--lime-bg', t.limeBg);
+}
+function renderThemeSettings(){
+  const wrap = document.getElementById('listTema');
+  const activeKey = (CONFIG.theme && CONFIG.theme.presetKey) || 'lime_ink';
+  wrap.innerHTML = Object.values(THEME_PRESETS).map(t => `
+    <div class="theme-swatch ${t.key===activeKey?'selected':''}" onclick="pilihTema('${t.key}')">
+      <div class="swatch-dots">
+        <span style="background:${t.ink}"></span>
+        <span style="background:${t.lime}"></span>
+        <span style="background:${t.bg}"></span>
+      </div>
+      <span>${t.name}</span>
+    </div>`).join('');
+  if(CONFIG.theme && CONFIG.theme.presetKey === 'custom' && CONFIG.theme.custom){
+    document.getElementById('cPrimary').value = CONFIG.theme.custom.ink || '#312E81';
+    document.getElementById('cAccent').value = CONFIG.theme.custom.lime || '#84CC16';
+    document.getElementById('cBg').value = CONFIG.theme.custom.bg || '#F3F4F6';
+  }
+}
+async function pilihTema(key){
+  try{
+    await saveRemoteConfig({ theme: { presetKey: key } });
+    applyTheme(resolveTheme(CONFIG.theme));
+    renderThemeSettings();
+  }catch(err){ alert('Gagal menyimpan tema: ' + err.message); }
+}
+async function simpanTemaKustom(){
+  const custom = {
+    ink: document.getElementById('cPrimary').value,
+    lime: document.getElementById('cAccent').value,
+    bg: document.getElementById('cBg').value
+  };
+  try{
+    await saveRemoteConfig({ theme: { presetKey:'custom', custom } });
+    applyTheme(resolveTheme(CONFIG.theme));
+    renderThemeSettings();
+    alert('Tema kustom diterapkan & disimpan.');
+  }catch(err){ alert('Gagal menyimpan tema kustom: ' + err.message); }
+}
+
+// ================= QUOTE HARIAN (client-side, rotasi per hari) =================
+const QUOTES_HARIAN = [
+  {t:'Uang yang dikelola dengan tenang akan bekerja lebih baik daripada uang yang dikejar dengan panik.', s:'Afirmasi Harian'},
+  {t:'Setiap rupiah yang kamu catat hari ini adalah langkah kecil menuju kendali penuh atas hidupmu.', s:'Afirmasi Harian'},
+  {t:'Konsisten mencatat itu lebih penting daripada penghasilan besar — kebiasaan yang menang di akhir.', s:'Afirmasi Harian'},
+  {t:'Kamu tidak harus kaya untuk mulai menabung, kamu menabung untuk mulai jadi tenang.', s:'Afirmasi Harian'},
+  {t:'Defisit bulan ini bukan kegagalan, itu data. Data yang bisa kamu perbaiki bulan depan.', s:'Afirmasi Harian'},
+  {t:'Investasi terbaik adalah kebiasaan mencatat pengeluaran sebelum ia sempat kamu lupakan.', s:'Afirmasi Harian'},
+  {t:'Cashflow sehat bukan soal berapa besar penghasilanmu, tapi seberapa sadar kamu mengaturnya.', s:'Afirmasi Harian'},
+  {t:'Hari ini, satu keputusan kecil untuk tidak boros adalah hadiah untuk dirimu di masa depan.', s:'Afirmasi Harian'},
+  {t:'Menabung sedikit tapi rutin akan mengalahkan niat menabung banyak yang tak pernah dimulai.', s:'Afirmasi Harian'},
+  {t:'Kamu sedang membangun kebebasan finansial, satu catatan transaksi pada satu waktu.', s:'Afirmasi Harian'},
+  {t:'Jangan bandingkan progres keuanganmu dengan orang lain — bandingkan dengan dirimu bulan lalu.', s:'Afirmasi Harian'},
+  {t:'Rencana keuangan yang sederhana dan dijalankan selalu lebih baik dari rencana rumit yang diabaikan.', s:'Afirmasi Harian'},
+  {t:'Setiap kali kamu menolak pengeluaran impulsif, kamu sedang memilih versi dirimu yang lebih tenang.', s:'Afirmasi Harian'},
+  {t:'Aset yang tumbuh pelan tapi pasti tetap lebih baik daripada aset yang tidak pernah dimulai.', s:'Afirmasi Harian'},
+  {t:'Kesehatan finansial dimulai dari kejujuran pada diri sendiri soal ke mana uang benar-benar pergi.', s:'Afirmasi Harian'}
+];
+function renderQuoteOfTheDay(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - start) / 86400000);
+  const q = QUOTES_HARIAN[dayOfYear % QUOTES_HARIAN.length];
+  document.getElementById('quoteTeks').textContent = '“' + q.t + '”';
+  document.getElementById('quoteSumber').textContent = '— ' + q.s;
+}
+
+// ================= FOTO BUKTI =================
+function handleFotoPick(event, kind){
+  const file = event.target.files[0];
+  const statusEl = document.getElementById('fotoPreviewStatus-'+kind);
+  if(!file){ pendingFoto[kind] = null; return; }
+  if(file.size > 4 * 1024 * 1024){
+    statusEl.textContent = '⚠ File terlalu besar (maks ~4MB).';
+    event.target.value = ''; pendingFoto[kind] = null; return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => { pendingFoto[kind] = reader.result; statusEl.textContent = 'Foto siap diunggah: ' + file.name; };
+  reader.onerror = () => { statusEl.textContent = '⚠ Gagal membaca file.'; };
+  reader.readAsDataURL(file);
+}
+
+// ================= INIT =================
+window.onerror = function(message, source, lineno){
+  console.error('Error:', message, 'line', lineno);
+  return false;
+};
+window.addEventListener('load', () => {
+  const cfg = getConfig();
+  document.getElementById('fDate-income').value = todayISO();
+  document.getElementById('fDate-expense').value = todayISO();
+  if(cfg.pin){
+    initApp();
+  } else {
+    document.getElementById('setupScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
+async function initApp(){
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('onboardScreen').style.display = 'none';
+  populateMonthSelect('income');
+  populateMonthSelect('expense');
+  renderQuoteOfTheDay();
+  await loadRemoteConfig();
+  if(CONFIG.incomeCategories.length === 0 && CONFIG.expenseCategories.length === 0){
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('onboardScreen').style.display = 'flex';
+    return;
+  }
+  document.getElementById('app').style.display = 'block';
+  loadTransactions();
+}
+
+// ================= ONBOARDING (setup kategori pertama kali) =================
+function onboardNext(){
+  const inc = document.getElementById('obIncome').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const exp = document.getElementById('obExpense').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(inc.length === 0 || exp.length === 0){ alert('Isi minimal satu sumber pemasukan dan satu jenis pengeluaran ya.'); return; }
+  const listWrap = document.getElementById('obSavingList');
+  listWrap.innerHTML = exp.map(cat => `
+    <label class="inline" style="display:flex;gap:6px;padding:6px 0;font-size:13px;">
+      <input type="checkbox" value="${escapeAttr(cat)}"> ${escapeHtml(cat)}
+    </label>`).join('');
+  document.getElementById('onboardStep1').style.display = 'none';
+  document.getElementById('onboardStep2').style.display = 'block';
+}
+function onboardBack(){
+  document.getElementById('onboardStep1').style.display = 'block';
+  document.getElementById('onboardStep2').style.display = 'none';
+}
+async function onboardFinish(){
+  const inc = document.getElementById('obIncome').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const exp = document.getElementById('obExpense').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const saving = Array.from(document.querySelectorAll('#obSavingList input:checked')).map(el => el.value);
+  const saldoAwal = {};
+  saving.forEach(cat => { saldoAwal[cat] = 0; });
+  const statusEl = document.getElementById('onboardStatus');
+  statusEl.textContent = 'Menyimpan...';
+  try{
+    await saveRemoteConfig({ incomeCategories: inc, expenseCategories: exp, savingCategories: saving, saldoAwal, cairanMap: {} });
+    document.getElementById('onboardScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    populateCategorySelect('income');
+    populateCategorySelect('expense');
+    await loadTransactions();
+  }catch(err){ statusEl.textContent = '⚠ ' + err.message; }
+}
+function populateMonthSelect(kind){
+  const sel = document.getElementById('monthSel-'+kind);
+  sel.innerHTML = '';
+  MONTHS_FULL.forEach((m,i) => {
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = m + ' ' + YEAR;
+    if(i === new Date().getMonth()) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+function populateCategorySelect(kind){
+  const sel = document.getElementById('fCategory-'+kind);
+  if(!sel) return;
+  sel.innerHTML = '';
+  const list = kind === 'income' ? CONFIG.incomeCategories : CONFIG.expenseCategories;
+  list.forEach(c => {
+    const opt = document.createElement('option'); opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+// ================= DATA: LOAD / SUBMIT / DELETE =================
+async function loadTransactions(){
+  const cfg = getConfig();
+  if(!cfg.pin) return;
+  try{
+    const data = await gsRun('apiList', cfg.pin);
+    transactions = data.rows.map(r => ({...r, jumlah:Number(r.jumlah)}));
+    if(currentPage === 'dashboard') renderDashboard();
+    if(currentPage === 'income') renderLedger('income');
+    if(currentPage === 'expense') renderLedger('expense');
+    if(currentPage === 'invest') renderInvest();
+  }catch(err){
+    console.error(err.message);
+  }
+}
+async function submitTransaction(kind){
+  const cfg = getConfig();
+  const date = document.getElementById('fDate-'+kind).value;
+  const category = document.getElementById('fCategory-'+kind).value;
+  const amount = parseFloat(document.getElementById('fAmount-'+kind).value);
+  const note = document.getElementById('fNote-'+kind).value.trim();
+  const statusEl = document.getElementById('submitStatus-'+kind);
+  if(!date || !amount || amount <= 0){ alert('Isi tanggal dan jumlah dengan benar.'); return; }
+  statusEl.textContent = pendingFoto[kind] ? 'Mengunggah foto & menyimpan...' : 'Menyimpan...';
+  try{
+    await gsRun('apiAdd', cfg.pin, date, kind, category, amount, note, pendingFoto[kind] || '');
+    document.getElementById('fAmount-'+kind).value = '';
+    document.getElementById('fNote-'+kind).value = '';
+    document.getElementById('fFoto-'+kind).value = '';
+    pendingFoto[kind] = null;
+    document.getElementById('fotoPreviewStatus-'+kind).textContent = '';
+    statusEl.textContent = 'Tersimpan ✓';
+    await loadTransactions();
+    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+  }catch(err){
+    statusEl.textContent = '⚠ ' + err.message;
+  }
+}
+async function removeTransaction(id){
+  const cfg = getConfig();
+  if(!confirm('Hapus transaksi ini?')) return;
+  try{
+    await gsRun('apiDelete', cfg.pin, id);
+    await loadTransactions();
+  }catch(err){ alert('Gagal hapus: ' + err.message); }
+}
+async function testConnection(){
+  const cfg = getConfig();
+  const el = document.getElementById('settingsStatus');
+  if(!cfg.pin){ el.textContent = '⚠ Isi & simpan PIN dulu.'; return; }
+  el.textContent = 'Menguji koneksi...';
+  try{
+    const t0 = Date.now();
+    const data = await gsRun('apiList', cfg.pin);
+    el.textContent = 'Koneksi OK ✓ | jumlah transaksi: ' + data.rows.length + ' | ' + (Date.now()-t0) + 'ms';
+  }catch(err){
+    el.textContent = '⚠ Gagal: ' + err.message;
+  }
+}
+
+// ================= FEEDBACK / SARAN AI (rule-based) =================
+// Saldo kas berjalan = akumulasi SEMUA transaksi sejak awal pakai app, bukan
+// cuma bulan ini. Pemasukan nambah, pengeluaran (termasuk yang tabungan/
+// investasi, karena uangnya pindah keluar dari kas) ngurangin. Pencairan
+// investasi balik lagi jadi pemasukan, jadi otomatis nambah kas lagi.
+// Ini yang bikin sisa bulan lalu "nyambung" jadi modal bulan berikutnya.
+function computeSaldoKas(uptoDate){
+  return transactions.reduce((sum, t) => {
+    if(uptoDate && new Date(t.tanggal) > uptoDate) return sum;
+    return sum + (t.tipe === 'income' ? t.jumlah : -t.jumlah);
+  }, 0);
+}
+
+function computeFeedback(monthTx, saldoKasSebelumBulanIni){
+  const income = monthTx.filter(t => t.tipe === 'income');
+  const expense = monthTx.filter(t => t.tipe === 'expense');
+  const expenseMurni = expense.filter(t => !CONFIG.savingCategories.includes(t.kategori));
+  const expenseTabungan = expense.filter(t => CONFIG.savingCategories.includes(t.kategori));
+  const totalIncome = income.reduce((s,t) => s+t.jumlah, 0);
+  const totalExpense = expenseMurni.reduce((s,t) => s+t.jumlah, 0);
+  const totalTabungan = expenseTabungan.reduce((s,t) => s+t.jumlah, 0);
+  const pinjaman = income.filter(t => t.kategori === 'Pinjaman Masuk').reduce((s,t) => s+t.jumlah,0);
+  // selisihMurni: sisa income-expense TANPA nabung dihitung sebagai "beban" —
+  // dipakai buat nilai kesehatan cashflow (nabung itu pilihan bagus, bukan pemborosan).
+  const selisihMurni = totalIncome - totalExpense;
+  // deltaKas: uang yang beneran nambah/berkurang dari kas-di-tangan bulan ini —
+  // nabung/investasi DIKURANGI di sini karena uangnya fisik pindah keluar dari kas.
+  const deltaKas = totalIncome - totalExpense - totalTabungan;
+  const saldoKasSekarang = (saldoKasSebelumBulanIni||0) + deltaKas;
+  const selisih = selisihMurni; // alias biar kompatibel sama kode lain yang masih pakai nama ini
+  const banners = [];
+  let indicator = { level:'note', tagline:'⚪ Belum Ada Data Bulan Ini' };
+
+  const catTotals = {};
+  expenseMurni.forEach(t => { catTotals[t.kategori] = (catTotals[t.kategori]||0) + t.jumlah; });
+  let topCat = null, topVal = 0;
+  Object.entries(catTotals).forEach(([k,v]) => { if(v > topVal){ topVal = v; topCat = k; } });
+
+  if(totalTabungan > 0){
+    banners.push({ level:'info', text: 'Nabung/investasi bulan ini: ' + rupiah(totalTabungan) + ' — sudah pindah jadi aset, gak dihitung sebagai pengeluaran/pemborosan (tapi tetap ngurangin kas di tangan).' });
+  }
+  if(totalIncome === 0 && totalExpense === 0){
+    return { totalIncome, totalExpense, totalTabungan, selisih, saldoKasSekarang, banners, indicator };
+  }
+  const bulanIniMinus = selisihMurni < 0;
+  if(bulanIniMinus && saldoKasSekarang < 0){
+    indicator = { level:'danger', tagline:'🔴 Waspada, Saldo Kas Minus' };
+    banners.push({ level:'danger', text: 'Bulan ini defisit ' + rupiah(Math.abs(selisihMurni)) + ', dan saldo kas totalmu (akumulasi dari awal) ikut minus jadi ' + rupiah(saldoKasSekarang) + '.' + (topCat ? ' Kategori paling boros bulan ini: ' + topCat + ' (' + rupiah(topVal) + ').' : '') + ' Ini perlu direm serius.' });
+  } else if(bulanIniMinus && saldoKasSekarang >= 0){
+    indicator = { level:'warn', tagline:'🟡 Bulan Ini Minus, Tapi Kas Total Masih Aman' };
+    banners.push({ level:'warn', text: 'Bulan ini defisit ' + rupiah(Math.abs(selisihMurni)) + ', tapi masih ketutup sisa bulan-bulan sebelumnya — saldo kas totalmu sekarang ' + rupiah(saldoKasSekarang) + '.' + (topCat ? ' Kategori paling boros bulan ini: ' + topCat + '.' : '') });
+  } else if(pinjaman > 0 && (selisihMurni - pinjaman) < 0){
+    indicator = { level:'warn', tagline:'🟡 Surplus Semu (Ditopang Pinjaman)' };
+    banners.push({ level:'warn', text: 'Surplus ini sebenarnya ditopang pinjaman ' + rupiah(pinjaman) + ' — tanpa itu, cashflow asli kamu minus ' + rupiah(Math.abs(selisihMurni - pinjaman)) + '.' });
+  } else {
+    const rate = totalIncome > 0 ? selisihMurni / totalIncome : 0;
+    if(rate <= 0.10){
+      indicator = { level:'warn', tagline:'🟡 Tipis, Perlu Direm' };
+      banners.push({ level:'warn', text: 'Sisa cuma ' + (rate*100).toFixed(1) + '% dari pemasukan, masih tipis dan rawan.' + (topCat ? ' Kategori terbesar: ' + topCat + '.' : '') });
+    } else if(rate <= 0.50){
+      indicator = { level:'ok', tagline:'🟢 Cashflow Sehat' };
+      banners.push({ level:'ok', text: 'Cashflow sehat, nyisa ' + rupiah(selisih) + ' (' + (rate*100).toFixed(1) + '%) bulan ini.' });
+    } else {
+      indicator = { level:'info', tagline:'🔵 Surplus Besar' };
+      banners.push({ level:'info', text: 'Nyisa di atas separuh pemasukan (' + (rate*100).toFixed(1) + '%) — bagus kalau memang disengaja, tapi cek lagi kebutuhan pokok udah cukup belum.' });
+    }
+  }
+  if(topCat && totalExpense > 0 && (topVal/totalExpense) > 0.4){
+    banners.push({ level:'note', text: 'Kategori "' + topCat + '" porsinya ' + ((topVal/totalExpense)*100).toFixed(0) + '% dari total pengeluaran — kelewat dominan dibanding kategori lain.' });
+  }
+  banners.push({ level:'note', text: 'Saldo kas total (akumulasi semua bulan sejak awal): ' + rupiah(saldoKasSekarang) + '.' });
+  return { totalIncome, totalExpense, totalTabungan, selisih, saldoKasSekarang, banners, indicator };
+}
+
+// ================= RENDER: DASHBOARD =================
+function renderDashboard(){
+  renderQuoteOfTheDay();
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthTx = transactions.filter(t => { const d = new Date(t.tanggal); return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear(); });
+  // Saldo kas SEBELUM bulan ini = akumulasi semua transaksi sebelum tanggal 1 bulan ini.
+  const saldoKasSebelumBulanIni = computeSaldoKas(new Date(startOfMonth.getTime() - 1));
+  const fb = computeFeedback(monthTx, saldoKasSebelumBulanIni);
+
+  document.getElementById('aiTagline').textContent = fb.indicator.tagline;
+  const aiCard = document.getElementById('aiCard');
+  aiCard.className = 'card ai-card banner-' + (fb.indicator.level === 'note' ? 'note' : fb.indicator.level);
+  const bwrap = document.getElementById('aiBannerWrap');
+  bwrap.innerHTML = fb.banners.map(b => '<div style="font-size:13px;margin-top:4px;">' + escapeHtml(b.text) + '</div>').join('');
+
+  const saldoKasTotal = computeSaldoKas();
+  document.getElementById('saldoKasCard').innerHTML = `
+    <div class="neraca-label">Saldo Kas Saat Ini (akumulasi dari awal)</div>
+    <div class="neraca-big" style="color:${saldoKasTotal < 0 ? 'var(--coral)' : 'var(--lime-dark)'};">${rupiah(saldoKasTotal)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px;">Uang tunai yang masih bisa dipakai — sudah dikurangi yang dipindah ke tabungan/investasi, sudah ditambah pencairan aset.</div>
+  `;
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat"><div class="num" style="color:var(--lime-dark);">${rupiah(fb.totalIncome)}</div><div class="label">Pemasukan</div></div>
+    <div class="stat"><div class="num" style="color:var(--coral);">${rupiah(fb.totalExpense)}</div><div class="label">Pengeluaran</div></div>
+    <div class="stat"><div class="num" style="color:var(--inv);">${rupiah(fb.totalTabungan)}</div><div class="label">Tabungan</div></div>
+  `;
+
+  renderAssetSummary();
+  renderTrendChart();
+  renderPivotTable();
+}
+
+function renderAssetSummary(){
+  const wrap = document.getElementById('assetSummaryWrap');
+  if(!wrap) return;
+  const saldoAwal = CONFIG.saldoAwal || {};
+  if(CONFIG.savingCategories.length === 0){
+    wrap.innerHTML = '<div class="empty">Belum ada kategori tabungan/investasi. Tandai di menu Pengaturan.</div>';
+    return;
+  }
+  let html = '';
+  CONFIG.savingCategories.forEach(cat => {
+    const setoran = transactions.filter(t => t.tipe==='expense' && t.kategori===cat).reduce((s,t)=>s+t.jumlah,0);
+    const cairanCat = Object.keys(CONFIG.cairanMap).find(k => CONFIG.cairanMap[k] === cat);
+    const pencairan = transactions.filter(t => t.tipe==='income' && t.kategori===cairanCat).reduce((s,t)=>s+t.jumlah,0);
+    const total = (saldoAwal[cat]||0) + setoran - pencairan;
+    html +=
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--track);">' +
+      '<div><div style="font-weight:700;font-size:14px;">'+cat+'</div>' +
+      '<div style="font-size:11px;color:var(--muted);">saldo awal '+rupiah(saldoAwal[cat]||0)+' + setoran '+rupiah(setoran)+(pencairan>0?' − pencairan '+rupiah(pencairan):'')+'</div></div>' +
+      '<div style="font-family:ui-monospace,monospace;font-weight:700;font-size:15px;color:var(--inv);">'+rupiah(total)+'</div>' +
+      '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+function computeAssetTotal(cat){
+  const saldoAwal = CONFIG.saldoAwal || {};
+  const setoran = transactions.filter(t => t.tipe==='expense' && t.kategori===cat).reduce((s,t)=>s+t.jumlah,0);
+  const cairanCat = Object.keys(CONFIG.cairanMap).find(k => CONFIG.cairanMap[k] === cat);
+  const pencairan = transactions.filter(t => t.tipe==='income' && t.kategori===cairanCat).reduce((s,t)=>s+t.jumlah,0);
+  return { total: (saldoAwal[cat]||0) + setoran - pencairan, setoran, pencairan, saldoAwal: saldoAwal[cat]||0 };
+}
+
+function renderTrendChart(){
+  const monthly = MONTHS_SHORT.map((m,i) => {
+    const txs = transactions.filter(t => { const d = new Date(t.tanggal); return d.getMonth()===i && d.getFullYear()===YEAR; });
+    return {
+      income: txs.filter(t=>t.tipe==='income').reduce((s,t)=>s+t.jumlah,0),
+      expense: txs.filter(t=>t.tipe==='expense' && !CONFIG.savingCategories.includes(t.kategori)).reduce((s,t)=>s+t.jumlah,0),
+      saving: txs.filter(t=>t.tipe==='expense' && CONFIG.savingCategories.includes(t.kategori)).reduce((s,t)=>s+t.jumlah,0),
+    };
+  });
+  const chartWrap = document.getElementById('chartWrap');
+  if(typeof Chart === 'undefined'){
+    chartWrap.innerHTML = '<div class="banner banner-warn">Grafik tidak bisa dimuat — library Chart.js diblokir (kemungkinan oleh Brave Shields/ad-blocker).</div>';
+    return;
+  }
+  if(!document.getElementById('trendChart')){ chartWrap.innerHTML = '<canvas id="trendChart"></canvas>'; }
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if(trendChartInstance) trendChartInstance.destroy();
+  trendChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: MONTHS_SHORT, datasets: [
+      { label:'Pemasukan', data: monthly.map(m=>m.income), backgroundColor:'#65A30D', borderRadius:3 },
+      { label:'Pengeluaran', data: monthly.map(m=>m.expense), backgroundColor:'#FB7185', borderRadius:3 },
+      { label:'Tabungan/Investasi', data: monthly.map(m=>m.saving), backgroundColor:'#6366F1', borderRadius:3 },
+    ]},
+    options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ ticks:{ callback:(v)=>(v/1000)+'k', font:{size:10} } }, x:{ ticks:{font:{size:11}} } }, plugins:{ legend:{ labels:{ font:{size:11} } } } }
+  });
+}
+
+function renderPivotTable(){
+  const rows = {};
+  CONFIG.expenseCategories.forEach(cat => { rows[cat] = MONTHS_SHORT.map(()=>0); rows[cat].total = 0; });
+  transactions.filter(t=>t.tipe==='expense').forEach(t => {
+    const d = new Date(t.tanggal);
+    if(d.getFullYear() !== YEAR) return;
+    if(!rows[t.kategori]) return;
+    rows[t.kategori][d.getMonth()] += t.jumlah;
+    rows[t.kategori].total += t.jumlah;
+  });
+  const activeCats = Object.entries(rows).filter(([,v]) => v.total > 0).sort((a,b) => b[1].total - a[1].total);
+  const pivotWrap = document.getElementById('pivotWrap');
+  if(activeCats.length === 0){ pivotWrap.innerHTML = '<div class="empty">Belum ada data pengeluaran untuk dianalisis.</div>'; return; }
+  let html = '<table class="pivot"><thead><tr><th>Kategori</th>' + MONTHS_SHORT.map(m=>'<th>'+m+'</th>').join('') + '<th>Total</th></tr></thead><tbody>';
+  activeCats.forEach(([cat,vals]) => {
+    html += '<tr><td>'+cat+'</td>' + vals.slice(0,12).map(v => '<td>'+(v>0?(v/1000).toFixed(0)+'k':'-')+'</td>').join('') + '<td style="font-weight:700;">'+rupiah(vals.total)+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  const top = activeCats[0];
+  html += '<div class="banner banner-note" style="margin-top:14px;">Kategori pengeluaran terbesar tahun ini: <b>'+top[0]+'</b> ('+rupiah(top[1].total)+').</div>';
+  pivotWrap.innerHTML = html;
+}
+
+// ================= RENDER: PEMASUKAN / PENGELUARAN =================
+function getMonthTx(kind){
+  const monthIdx = Number(document.getElementById('monthSel-'+kind).value);
+  return transactions.filter(t => {
+    const d = new Date(t.tanggal);
+    return t.tipe === kind && d.getMonth() === monthIdx && d.getFullYear() === YEAR;
+  }).sort((a,b) => a.tanggal < b.tanggal ? 1 : -1);
+}
+function renderLedger(kind){
+  const monthTx = getMonthTx(kind);
+
+  const catWrap = document.getElementById('categoryBreakdown-'+kind);
+  const catTotals = {};
+  monthTx.forEach(t => { catTotals[t.kategori] = (catTotals[t.kategori]||0) + t.jumlah; });
+  const entries = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+  if(entries.length === 0){
+    catWrap.innerHTML = '<div class="empty">Belum ada transaksi bulan ini.</div>';
+  } else {
+    const maxVal = Math.max(...entries.map(e=>e[1]));
+    catWrap.innerHTML = entries.map(([cat,val]) => {
+      const pct = val / Math.max(maxVal,1) * 100;
+      const color = kind === 'income' ? 'var(--lime-dark)' : 'var(--coral)';
+      return '<div style="margin-bottom:12px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">' +
+        '<span style="font-weight:700;">'+escapeHtml(cat)+'</span><span style="font-family:ui-monospace,monospace;color:var(--ink-soft);">'+rupiah(val)+'</span></div>' +
+        '<div class="bar-track" style="height:7px;"><div class="bar-fill" style="height:100%;width:'+pct+'%;background:'+color+'"></div></div></div>';
+    }).join('');
+  }
+
+  const ledgerWrap = document.getElementById('ledger-'+kind);
+  if(monthTx.length === 0){
+    ledgerWrap.innerHTML = '<div class="empty">Belum ada catatan bulan ini.</div>';
+  } else {
+    ledgerWrap.innerHTML = monthTx.map(t => {
+      const fotoHtml = t.fotoUrl ? '<div class="ledger-foto"><a href="'+t.fotoUrl+'" target="_blank" rel="noopener">📷 Lihat foto</a></div>' : '';
+      return '<div class="ledger-row">' +
+        '<div class="ledger-date">'+t.tanggal.slice(8,10)+'/'+t.tanggal.slice(5,7)+'</div>' +
+        '<div class="ledger-mid"><div class="ledger-cat">'+escapeHtml(t.kategori)+'</div>' + (t.catatan ? '<div class="ledger-note">'+escapeHtml(t.catatan)+'</div>' : '') + fotoHtml + '</div>' +
+        '<div class="ledger-amt" style="color:'+(kind==='income'?'var(--lime-dark)':'var(--coral)')+'">'+(kind==='income'?'+':'−')+rupiah(t.jumlah)+'</div>' +
+        '<button class="del-btn" onclick="removeTransaction(\''+t.id+'\')">×</button></div>';
+    }).join('');
+  }
+}
+
+// ================= RENDER: INVESTASI =================
+function renderInvest(){
+  const listWrap = document.getElementById('investList');
+  if(CONFIG.savingCategories.length === 0){
+    listWrap.innerHTML = '<div class="empty">Belum ada instrumen investasi. Tandai kategori pengeluaran sebagai "tabungan/investasi" di menu Pengaturan.</div>';
+    document.getElementById('investGrandTotal').textContent = rupiah(0);
+    return;
+  }
+  let grandTotal = 0;
+  listWrap.innerHTML = CONFIG.savingCategories.map(cat => {
+    const d = computeAssetTotal(cat);
+    grandTotal += d.total;
+    const safeCat = cat.replace(/[^a-zA-Z0-9]/g,'_');
+    return `
+      <div class="asset-card" style="display:block;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+          <div>
+            <div class="asset-name">${escapeHtml(cat)}</div>
+            <div class="asset-detail">saldo awal ${rupiah(d.saldoAwal)} + setoran ${rupiah(d.setoran)}${d.pencairan>0?' − pencairan '+rupiah(d.pencairan):''}</div>
+          </div>
+          <div class="asset-total">${rupiah(d.total)}</div>
+        </div>
+        <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="toggleAssetForm('${safeCat}')">+ Tambah Setoran</button>
+        <div class="asset-add-form" id="assetForm_${safeCat}">
+          <label>Tanggal</label>
+          <input type="date" id="assetDate_${safeCat}" value="${todayISO()}">
+          <label>Jumlah (Rp)</label>
+          <input type="number" min="0" id="assetAmount_${safeCat}" placeholder="cth. 500000">
+          <label>Catatan (opsional)</label>
+          <input type="text" id="assetNote_${safeCat}" placeholder="cth. Setoran rutin bulanan">
+          <button class="btn btn-primary" style="background:var(--inv);" onclick="submitAssetTopUp('${escapeAttr(cat)}','${safeCat}')">Simpan Setoran</button>
+          <div class="status" id="assetStatus_${safeCat}"></div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('investGrandTotal').textContent = rupiah(grandTotal);
+}
+function toggleAssetForm(safeCat){
+  document.getElementById('assetForm_'+safeCat).classList.toggle('open');
+}
+async function submitAssetTopUp(cat, safeCat){
+  const cfg = getConfig();
+  const date = document.getElementById('assetDate_'+safeCat).value;
+  const amount = parseFloat(document.getElementById('assetAmount_'+safeCat).value);
+  const note = document.getElementById('assetNote_'+safeCat).value.trim();
+  const statusEl = document.getElementById('assetStatus_'+safeCat);
+  if(!date || !amount || amount <= 0){ alert('Isi tanggal dan jumlah dengan benar.'); return; }
+  statusEl.textContent = 'Menyimpan...';
+  try{
+    await gsRun('apiAdd', cfg.pin, date, 'expense', cat, amount, note, '');
+    statusEl.textContent = 'Tersimpan ✓';
+    await loadTransactions();
+  }catch(err){ statusEl.textContent = '⚠ ' + err.message; }
+}
+</script>
+</body>
+</html>
