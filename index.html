@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Cashflow Finance Mandiri</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --ink:#312E81; --ink-soft:#6B7280; --muted:#9CA3AF;
@@ -128,6 +127,35 @@
   .asset-add-form{margin-top:10px;padding-top:10px;border-top:1px dashed var(--track);display:none;}
   .asset-add-form.open{display:block;}
 
+  /* ---------- dashboard v2: kas & liabilitas, doughnut pintasan ---------- */
+  .kas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .kas-box{background:var(--bg);border-radius:12px;padding:14px 10px;text-align:center;}
+  .kas-icon{font-size:17px;line-height:1;}
+  .kas-label{font-size:10px;color:var(--ink-soft);font-weight:700;margin-top:5px;text-transform:uppercase;letter-spacing:.03em;}
+  .kas-value{font-family:ui-monospace,monospace;font-weight:800;font-size:16px;margin-top:4px;word-break:break-word;}
+  .kas-note{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.3;}
+  .doughnut-card h2{display:flex;align-items:center;justify-content:space-between;}
+  .doughnut-row{display:flex;align-items:center;gap:14px;}
+  .doughnut-shell{position:relative;width:176px;height:120px;flex-shrink:0;}
+  .doughnut-shell .dn-svg-wrap{width:100%;height:100%;}
+  .doughnut-shell .dn-svg-wrap svg{display:block;width:100%;height:100%;overflow:visible;}
+  .dn-slice{transition:filter .15s ease;cursor:pointer;}
+  .dn-slice.dn-active{filter:brightness(1.14);}
+  .doughnut-center{position:absolute;left:0;right:0;top:41%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;padding:0 20px;}
+  .doughnut-center .pct{font-size:22px;font-weight:800;color:var(--ink);font-family:ui-monospace,monospace;line-height:1;}
+  .doughnut-center .lbl{font-size:9.5px;color:var(--ink-soft);margin-top:5px;line-height:1.3;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .doughnut-legend{flex:1;min-width:0;}
+  .legend-item{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 5px;color:var(--ink-soft);border-radius:6px;cursor:pointer;}
+  .legend-item.active{background:var(--bg);box-shadow:inset 0 0 0 1px var(--border);}
+  .legend-item .li-name{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--ink);}
+  .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .shortcut-link{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed var(--track);font-size:12px;font-weight:700;color:var(--ink);cursor:pointer;}
+  .piutang-badge{display:inline-block;font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:6px;padding:2px 6px;margin-top:3px;}
+  .btn-mark-lunas{border:none;background:var(--lime-bg);color:var(--lime-dark);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer;margin-top:3px;}
+  .cb-row{display:flex;align-items:center;gap:6px;margin-top:8px;}
+  .cb-row input{width:auto;}
+  .cb-row label{margin:0;font-size:12px;color:var(--ink-soft);text-transform:none;font-weight:500;}
+
   /* ---------- tema ---------- */
   .theme-swatch{display:flex;align-items:center;gap:10px;padding:10px;border:2px solid var(--track);border-radius:10px;margin-bottom:8px;cursor:pointer;}
   .theme-swatch.selected{border-color:var(--lime-dark);}
@@ -220,33 +248,36 @@
         <div id="aiBannerWrap"></div>
       </div>
 
-      <div class="card" id="saldoKasCard">
-        <div class="neraca-label">Saldo Kas Saat Ini (akumulasi dari awal)</div>
-        <div class="neraca-big">–</div>
+      <div class="card" id="kasLiabilitasCard">
+        <h2>Kas & Liabilitas</h2>
+        <div class="kas-grid" id="kasLiabilitasWrap"></div>
       </div>
 
-      <div class="card">
-        <h2>Ringkasan Bulan Ini</h2>
-        <div class="grid-3" id="dashStats">
-          <div class="stat"><div class="num">–</div><div class="label">Pemasukan</div></div>
-          <div class="stat"><div class="num">–</div><div class="label">Pengeluaran</div></div>
-          <div class="stat"><div class="num">–</div><div class="label">Tabungan</div></div>
+      <div class="card doughnut-card" id="dnCard-income">
+        <h2>🟢 Pemasukan Bulan Ini</h2>
+        <div class="doughnut-row">
+          <div class="doughnut-shell"><div class="dn-svg-wrap" id="dnChart-income"></div><div class="doughnut-center" id="dnCenter-income"></div></div>
+          <div class="doughnut-legend" id="dnLegend-income"></div>
         </div>
+        <div class="shortcut-link" onclick="switchPage('income')"><span>Lihat rincian pemasukan</span><span>›</span></div>
       </div>
 
-      <div class="card">
-        <h2>Tren Pemasukan vs Pengeluaran</h2>
-        <div id="chartWrap"><canvas id="trendChart"></canvas></div>
+      <div class="card doughnut-card" id="dnCard-expense">
+        <h2>🔴 Pengeluaran Bulan Ini</h2>
+        <div class="doughnut-row">
+          <div class="doughnut-shell"><div class="dn-svg-wrap" id="dnChart-expense"></div><div class="doughnut-center" id="dnCenter-expense"></div></div>
+          <div class="doughnut-legend" id="dnLegend-expense"></div>
+        </div>
+        <div class="shortcut-link" onclick="switchPage('expense')"><span>Lihat rincian pengeluaran</span><span>›</span></div>
       </div>
 
-      <div class="card">
-        <h2>Aset Terkumpul (Tabungan/Investasi)</h2>
-        <div id="assetSummaryWrap"></div>
-      </div>
-
-      <div class="card" style="overflow-x:auto;">
-        <h2>Pivot Pengeluaran per Kategori × Bulan</h2>
-        <div id="pivotWrap"></div>
+      <div class="card doughnut-card" id="dnCard-invest">
+        <h2>📈 Komposisi Investasi</h2>
+        <div class="doughnut-row">
+          <div class="doughnut-shell"><div class="dn-svg-wrap" id="dnChart-invest"></div><div class="doughnut-center" id="dnCenter-invest"></div></div>
+          <div class="doughnut-legend" id="dnLegend-invest"></div>
+        </div>
+        <div class="shortcut-link" onclick="switchPage('invest')"><span>Lihat rincian investasi</span><span>›</span></div>
       </div>
     </div>
 
@@ -266,6 +297,7 @@
         <label>Foto Bukti (opsional)</label>
         <input id="fFoto-income" type="file" accept="image/*" onchange="handleFotoPick(event,'income')">
         <div id="fotoPreviewStatus-income" class="status"></div>
+        <div class="cb-row"><input type="checkbox" id="fPiutang-income"><label for="fPiutang-income">Ini piutang — uangnya belum benar-benar diterima (masuk ke Liabilitas di Dashboard, bukan Saldo Kas)</label></div>
         <button class="btn btn-primary" style="background:var(--lime-dark);" onclick="submitTransaction('income')">Simpan Pemasukan</button>
         <div id="submitStatus-income" class="status"></div>
       </div>
@@ -406,7 +438,6 @@ const MONTHS_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','A
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const YEAR = new Date().getFullYear();
 let transactions = [];
-let trendChartInstance = null;
 let pendingFoto = { income:null, expense:null };
 let currentPage = 'dashboard';
 
@@ -604,7 +635,8 @@ async function updateCairanMap(incomeCat, savingCat){
       else delete updated[incomeCat];
       return { cairanMap: updated };
     });
-    renderAssetSummary();
+    renderInvest();
+    renderDoughnutInvest();
   }catch(err){ alert('Gagal update: ' + err.message); renderCategorySettings(); }
 }
 async function addCategory(kind){
@@ -930,10 +962,15 @@ async function submitTransaction(kind){
   try{
     const payload = { tanggal:date, tipe:kind, kategori:category, jumlah:amount, catatan:note };
     if(pendingFoto[kind]) payload.fotoBase64 = pendingFoto[kind];
+    if(kind === 'income'){
+      const piutangEl = document.getElementById('fPiutang-income');
+      payload.status = piutangEl && piutangEl.checked ? 'piutang' : 'lunas';
+    }
     await apiCall('add', payload, 25000);
     document.getElementById('fAmount-'+kind).value = '';
     document.getElementById('fNote-'+kind).value = '';
     document.getElementById('fFoto-'+kind).value = '';
+    if(kind === 'income') document.getElementById('fPiutang-income').checked = false;
     pendingFoto[kind] = null;
     document.getElementById('fotoPreviewStatus-'+kind).textContent = '';
     statusEl.textContent = 'Tersimpan ✓';
@@ -949,6 +986,12 @@ async function removeTransaction(id){
     await apiCall('delete', { id });
     await loadTransactions();
   }catch(err){ alert('Gagal hapus: ' + err.message); }
+}
+async function markLunas(id){
+  try{
+    await apiCall('markLunas', { id });
+    await loadTransactions();
+  }catch(err){ alert('Gagal update status: ' + err.message); }
 }
 async function testConnection(){
   const cfg = getConfig();
@@ -973,8 +1016,23 @@ async function testConnection(){
 function computeSaldoKas(uptoDate){
   return transactions.reduce((sum, t) => {
     if(uptoDate && new Date(t.tanggal) > uptoDate) return sum;
-    return sum + (t.tipe === 'income' ? t.jumlah : -t.jumlah);
+    // Pemasukan berstatus 'piutang' belum benar-benar diterima kasnya, jadi
+    // gak dihitung nambah kas sampai ditandai lunas (lihat markLunas()).
+    if(t.tipe === 'income') return sum + (t.status === 'piutang' ? 0 : t.jumlah);
+    return sum - t.jumlah;
   }, 0);
+}
+// Liabilitas dashboard = total pemasukan yang udah tercatat tapi belum
+// diterima kasnya (piutang) — akumulasi semua bulan. Dipecah juga jadi
+// "carriedOver": piutang yang tanggalnya SEBELUM bulan ini — ini yang
+// paling perlu diwaspadai karena artinya nunggak dari bulan lalu (atau lebih).
+function computeLiabilitas(){
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const piutang = transactions.filter(t => t.tipe === 'income' && t.status === 'piutang');
+  const total = piutang.reduce((s,t) => s+t.jumlah, 0);
+  const carriedOver = piutang.filter(t => new Date(t.tanggal) < startOfMonth).reduce((s,t) => s+t.jumlah, 0);
+  return { total, carriedOver };
 }
 
 function computeFeedback(monthTx, saldoKasSebelumBulanIni){
@@ -1054,46 +1112,191 @@ function renderDashboard(){
   const bwrap = document.getElementById('aiBannerWrap');
   bwrap.innerHTML = fb.banners.map(b => '<div style="font-size:13px;margin-top:4px;">' + escapeHtml(b.text) + '</div>').join('');
 
-  const saldoKasTotal = computeSaldoKas();
-  document.getElementById('saldoKasCard').innerHTML = `
-    <div class="neraca-label">Saldo Kas Saat Ini (akumulasi dari awal)</div>
-    <div class="neraca-big" style="color:${saldoKasTotal < 0 ? 'var(--coral)' : 'var(--lime-dark)'};">${rupiah(saldoKasTotal)}</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px;">Uang tunai yang masih bisa dipakai — sudah dikurangi yang dipindah ke tabungan/investasi, sudah ditambah pencairan aset.</div>
-  `;
-
-  document.getElementById('dashStats').innerHTML = `
-    <div class="stat"><div class="num" style="color:var(--lime-dark);">${rupiah(fb.totalIncome)}</div><div class="label">Pemasukan</div></div>
-    <div class="stat"><div class="num" style="color:var(--coral);">${rupiah(fb.totalExpense)}</div><div class="label">Pengeluaran</div></div>
-    <div class="stat"><div class="num" style="color:var(--inv);">${rupiah(fb.totalTabungan)}</div><div class="label">Tabungan</div></div>
-  `;
-
-  renderAssetSummary();
-  renderTrendChart();
-  renderPivotTable();
+  renderKasLiabilitas();
+  renderDoughnut('income');
+  renderDoughnut('expense');
+  renderDoughnutInvest();
 }
 
-function renderAssetSummary(){
-  const wrap = document.getElementById('assetSummaryWrap');
+function renderKasLiabilitas(){
+  const wrap = document.getElementById('kasLiabilitasWrap');
   if(!wrap) return;
-  const saldoAwal = CONFIG.saldoAwal || {};
-  if(CONFIG.savingCategories.length === 0){
-    wrap.innerHTML = '<div class="empty">Belum ada kategori tabungan/investasi. Tandai di menu Pengaturan.</div>';
+  const kas = computeSaldoKas();
+  const liab = computeLiabilitas();
+  const carriedNote = liab.carriedOver > 0
+    ? 'Termasuk ' + rupiah(liab.carriedOver) + ' nunggak dari bulan-bulan sebelumnya'
+    : 'Tercatat sebagai pemasukan tapi kasnya belum diterima';
+  wrap.innerHTML = `
+    <div class="kas-box">
+      <div class="kas-icon">💵</div>
+      <div class="kas-label">Saldo Kas</div>
+      <div class="kas-value" style="color:${kas < 0 ? 'var(--coral)' : 'var(--lime-dark)'};">${rupiah(kas)}</div>
+      <div class="kas-note">Uang tunai riil di tangan, sudah dikurangi tabungan/investasi</div>
+    </div>
+    <div class="kas-box">
+      <div class="kas-icon">⏳</div>
+      <div class="kas-label">Liabilitas / Piutang</div>
+      <div class="kas-value" style="color:${liab.total > 0 ? '#D97706' : 'var(--ink-soft)'};">${rupiah(liab.total)}</div>
+      <div class="kas-note">${carriedNote}</div>
+    </div>
+  `;
+}
+
+// ================= RENDER: DOUGHNUT PINTASAN (dashboard) =================
+// Donat digambar full SVG manual (bukan Chart.js) biar bentuk bevel/gradasi
+// per-segmennya bisa dikontrol persis dan konsisten di semua tempat dipakai.
+const DN_PALETTE = {
+  income:  ['#65A30D','#84CC16','#A3E635','#4D7C0F','#3F6212','#1A2E05'],
+  expense: ['#FB7185','#F43F5E','#E11D48','#BE123C','#9F1239','#881337'],
+  invest:  ['#6366F1','#818CF8','#4F46E5','#4338CA','#A5B4FC','#312E81'],
+};
+let doughnutEntries = { income:[], expense:[], invest:[] }; // [ [kategori, jumlah], ... ] urutan sama kayak slice svg
+
+// ---- helper warna: gelapin/terangin hex buat gradasi glossy per-segmen ----
+function hexToRgb_(hex){
+  hex = hex.replace('#','');
+  if(hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+  const num = parseInt(hex,16);
+  return [(num>>16)&255, (num>>8)&255, num&255];
+}
+function rgbToHex_(r,g,b){
+  return '#' + [r,g,b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function shade_(hex, amt){ // amt positif = terangin ke putih, negatif = gelapin ke hitam
+  const [r,g,b] = hexToRgb_(hex);
+  const t = amt < 0 ? 0 : 255, p = Math.abs(amt);
+  return rgbToHex_(r+(t-r)*p, g+(t-g)*p, b+(t-b)*p);
+}
+
+// ---- geometri: titik di tepi elips pada sudut tertentu (0deg = jam 12, searah jarum jam) ----
+function dnPolar_(cx,cy,rx,ry,angleDeg){
+  const rad = (angleDeg - 90) * Math.PI / 180;
+  return { x: cx + rx*Math.cos(rad), y: cy + ry*Math.sin(rad) };
+}
+function dnSectorPath_(cx,cy,rx,ry,irx,iry,startDeg,endDeg){
+  const large = (endDeg - startDeg) > 180 ? 1 : 0;
+  const p1 = dnPolar_(cx,cy,rx,ry,startDeg), p2 = dnPolar_(cx,cy,rx,ry,endDeg);
+  const p3 = dnPolar_(cx,cy,irx,iry,endDeg), p4 = dnPolar_(cx,cy,irx,iry,startDeg);
+  return 'M '+p1.x.toFixed(2)+' '+p1.y.toFixed(2)+
+    ' A '+rx+' '+ry+' 0 '+large+' 1 '+p2.x.toFixed(2)+' '+p2.y.toFixed(2)+
+    ' L '+p3.x.toFixed(2)+' '+p3.y.toFixed(2)+
+    ' A '+irx+' '+iry+' 0 '+large+' 0 '+p4.x.toFixed(2)+' '+p4.y.toFixed(2)+' Z';
+}
+
+// Dimensi svg tetap (viewBox), di-scale otomatis ke ukuran .doughnut-shell lewat width/height 100%.
+const DN_GEO = { W:220, H:150, cx:110, cy:62, rx:94, ry:56, irx:52, iry:31, wallH:15 };
+
+function dnBuildSVG_(kind, entries, palette){
+  const g = DN_GEO;
+  const total = entries.reduce((s,[,v]) => s+v, 0);
+  let angle = 0;
+  const defs = [];
+  const slices = [];
+  entries.forEach(([cat,val],i) => {
+    const color = palette[i % palette.length];
+    const sweep = total > 0 ? (val/total*360) : 0;
+    const start = angle, end = angle + sweep;
+    angle = end;
+    const gid = 'dnGrad_'+kind+'_'+i;
+    defs.push('<radialGradient id="'+gid+'" cx="32%" cy="26%" r="85%">' +
+      '<stop offset="0%" stop-color="'+shade_(color,0.4)+'"/>' +
+      '<stop offset="55%" stop-color="'+color+'"/>' +
+      '<stop offset="100%" stop-color="'+shade_(color,-0.3)+'"/></radialGradient>');
+    const d = dnSectorPath_(g.cx,g.cy,g.rx,g.ry,g.irx,g.iry,start,end);
+    slices.push('<path class="dn-slice" data-idx="'+i+'" d="'+d+'" fill="url(#'+gid+')" stroke="#ffffff" stroke-width="2"></path>');
+  });
+  const rimGid = 'dnRim_'+kind, holeGid = 'dnHole_'+kind, shadowId = 'dnShadow_'+kind;
+  defs.push('<radialGradient id="'+rimGid+'" cx="35%" cy="24%" r="85%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#e9ecef"/><stop offset="100%" stop-color="#c3c9cf"/></radialGradient>');
+  defs.push('<radialGradient id="'+holeGid+'" cx="35%" cy="26%" r="90%"><stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#eef0f3"/><stop offset="100%" stop-color="#d3d8dd"/></radialGradient>');
+  return '<svg viewBox="0 0 '+g.W+' '+g.H+'" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs>' + defs.join('') +
+      '<filter id="'+shadowId+'" x="-30%" y="-30%" width="160%" height="180%">' +
+        '<feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#312E81" flood-opacity="0.32"/>' +
+      '</filter>' +
+    '</defs>' +
+    '<g filter="url(#'+shadowId+')">' +
+      '<ellipse cx="'+g.cx+'" cy="'+(g.cy+g.wallH)+'" rx="'+g.rx+'" ry="'+g.ry+'" fill="#8a9099"></ellipse>' +
+      '<ellipse cx="'+g.cx+'" cy="'+g.cy+'" rx="'+(g.rx+4)+'" ry="'+(g.ry+4)+'" fill="url(#'+rimGid+')"></ellipse>' +
+      '<g>' + slices.join('') + '</g>' +
+      '<ellipse cx="'+g.cx+'" cy="'+g.cy+'" rx="'+(g.irx-2)+'" ry="'+(g.iry-2)+'" fill="url(#'+holeGid+')"></ellipse>' +
+    '</g></svg>';
+}
+
+function renderDoughnut(kind){
+  const now = new Date();
+  const monthTx = transactions.filter(t => {
+    const d = new Date(t.tanggal);
+    if(t.tipe !== kind) return false;
+    if(d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return false;
+    if(kind === 'expense' && CONFIG.savingCategories.includes(t.kategori)) return false;
+    return true;
+  });
+  const totals = {};
+  monthTx.forEach(t => { totals[t.kategori] = (totals[t.kategori]||0) + t.jumlah; });
+  renderDoughnutChart(kind, totals);
+}
+
+function renderDoughnutInvest(){
+  const totals = {};
+  CONFIG.savingCategories.forEach(cat => {
+    const d = computeAssetTotal(cat);
+    if(d.total > 0) totals[cat] = d.total;
+  });
+  renderDoughnutChart('invest', totals);
+}
+
+function renderDoughnutChart(kind, totals){
+  const palette = DN_PALETTE[kind];
+  const entries = Object.entries(totals).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+  doughnutEntries[kind] = entries;
+  const total = entries.reduce((s,[,v]) => s+v, 0);
+  const legendEl = document.getElementById('dnLegend-'+kind);
+  const centerEl = document.getElementById('dnCenter-'+kind);
+  const wrap = document.getElementById('dnChart-'+kind);
+
+  if(entries.length === 0){
+    legendEl.innerHTML = '<div class="empty">Belum ada data'+(kind==='invest'?' investasi.':' bulan ini.')+'</div>';
+    centerEl.innerHTML = '';
+    if(wrap) wrap.innerHTML = '';
     return;
   }
-  let html = '';
-  CONFIG.savingCategories.forEach(cat => {
-    const setoran = transactions.filter(t => t.tipe==='expense' && t.kategori===cat).reduce((s,t)=>s+t.jumlah,0);
-    const cairanCat = Object.keys(CONFIG.cairanMap).find(k => CONFIG.cairanMap[k] === cat);
-    const pencairan = transactions.filter(t => t.tipe==='income' && t.kategori===cairanCat).reduce((s,t)=>s+t.jumlah,0);
-    const total = (saldoAwal[cat]||0) + setoran - pencairan;
-    html +=
-      '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--track);">' +
-      '<div><div style="font-weight:700;font-size:14px;">'+cat+'</div>' +
-      '<div style="font-size:11px;color:var(--muted);">saldo awal '+rupiah(saldoAwal[cat]||0)+' + setoran '+rupiah(setoran)+(pencairan>0?' − pencairan '+rupiah(pencairan):'')+'</div></div>' +
-      '<div style="font-family:ui-monospace,monospace;font-weight:700;font-size:15px;color:var(--inv);">'+rupiah(total)+'</div>' +
-      '</div>';
+
+  legendEl.innerHTML = entries.slice(0,5).map(([cat,val],i) => {
+    const pct = total > 0 ? (val/total*100) : 0;
+    return '<div class="legend-item'+(i===0?' active':'')+'" data-idx="'+i+'" onclick="event.stopPropagation();selectDoughnutSlice(\''+kind+'\','+i+')"><span class="li-name"><span class="legend-dot" style="background:'+palette[i%palette.length]+'"></span>'+escapeHtml(cat)+'</span><b>'+pct.toFixed(0)+'%</b></div>';
+  }).join('') + (entries.length > 5 ? '<div class="legend-item" style="color:var(--muted);cursor:default;">+'+(entries.length-5)+' kategori lain</div>' : '');
+
+  wrap.innerHTML = dnBuildSVG_(kind, entries, palette);
+  wrap.querySelectorAll('.dn-slice').forEach(el => {
+    el.addEventListener('click', () => selectDoughnutSlice(kind, Number(el.dataset.idx)));
   });
-  wrap.innerHTML = html;
+
+  // Default: tampilkan kategori paling dominan (index 0, karena entries udah di-sort desc).
+  selectDoughnutSlice(kind, 0);
+}
+
+// Tap per-bagian doughnut (atau baris legend-nya) buat nampilin detail
+// kategori itu di tengah lingkaran — jalan di touch maupun klik mouse.
+function selectDoughnutSlice(kind, idx){
+  const entries = doughnutEntries[kind];
+  if(!entries || !entries[idx]) return;
+  showDoughnutCenter(kind, idx);
+  document.querySelectorAll('#dnLegend-'+kind+' .legend-item').forEach(el => {
+    el.classList.toggle('active', Number(el.dataset.idx) === idx);
+  });
+  const wrap = document.getElementById('dnChart-'+kind);
+  if(wrap) wrap.querySelectorAll('.dn-slice').forEach(el => {
+    el.classList.toggle('dn-active', Number(el.dataset.idx) === idx);
+  });
+}
+function showDoughnutCenter(kind, idx){
+  const entries = doughnutEntries[kind];
+  const centerEl = document.getElementById('dnCenter-'+kind);
+  if(!entries || !entries[idx] || !centerEl) return;
+  const total = entries.reduce((s,[,v]) => s+v, 0);
+  const [cat, val] = entries[idx];
+  const pct = total > 0 ? (val/total*100) : 0;
+  centerEl.innerHTML = '<div class="pct">'+pct.toFixed(0)+'%</div><div class="lbl">'+escapeHtml(cat)+'</div>';
 }
 
 function computeAssetTotal(cat){
@@ -1104,56 +1307,6 @@ function computeAssetTotal(cat){
   return { total: (saldoAwal[cat]||0) + setoran - pencairan, setoran, pencairan, saldoAwal: saldoAwal[cat]||0 };
 }
 
-function renderTrendChart(){
-  const monthly = MONTHS_SHORT.map((m,i) => {
-    const txs = transactions.filter(t => { const d = new Date(t.tanggal); return d.getMonth()===i && d.getFullYear()===YEAR; });
-    return {
-      income: txs.filter(t=>t.tipe==='income').reduce((s,t)=>s+t.jumlah,0),
-      expense: txs.filter(t=>t.tipe==='expense' && !CONFIG.savingCategories.includes(t.kategori)).reduce((s,t)=>s+t.jumlah,0),
-      saving: txs.filter(t=>t.tipe==='expense' && CONFIG.savingCategories.includes(t.kategori)).reduce((s,t)=>s+t.jumlah,0),
-    };
-  });
-  const chartWrap = document.getElementById('chartWrap');
-  if(typeof Chart === 'undefined'){
-    chartWrap.innerHTML = '<div class="banner banner-warn">Grafik tidak bisa dimuat — library Chart.js diblokir (kemungkinan oleh Brave Shields/ad-blocker).</div>';
-    return;
-  }
-  if(!document.getElementById('trendChart')){ chartWrap.innerHTML = '<canvas id="trendChart"></canvas>'; }
-  const ctx = document.getElementById('trendChart').getContext('2d');
-  if(trendChartInstance) trendChartInstance.destroy();
-  trendChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: MONTHS_SHORT, datasets: [
-      { label:'Pemasukan', data: monthly.map(m=>m.income), backgroundColor:'#65A30D', borderRadius:3 },
-      { label:'Pengeluaran', data: monthly.map(m=>m.expense), backgroundColor:'#FB7185', borderRadius:3 },
-      { label:'Tabungan/Investasi', data: monthly.map(m=>m.saving), backgroundColor:'#6366F1', borderRadius:3 },
-    ]},
-    options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ ticks:{ callback:(v)=>(v/1000)+'k', font:{size:10} } }, x:{ ticks:{font:{size:11}} } }, plugins:{ legend:{ labels:{ font:{size:11} } } } }
-  });
-}
-
-function renderPivotTable(){
-  const rows = {};
-  CONFIG.expenseCategories.forEach(cat => { rows[cat] = MONTHS_SHORT.map(()=>0); rows[cat].total = 0; });
-  transactions.filter(t=>t.tipe==='expense').forEach(t => {
-    const d = new Date(t.tanggal);
-    if(d.getFullYear() !== YEAR) return;
-    if(!rows[t.kategori]) return;
-    rows[t.kategori][d.getMonth()] += t.jumlah;
-    rows[t.kategori].total += t.jumlah;
-  });
-  const activeCats = Object.entries(rows).filter(([,v]) => v.total > 0).sort((a,b) => b[1].total - a[1].total);
-  const pivotWrap = document.getElementById('pivotWrap');
-  if(activeCats.length === 0){ pivotWrap.innerHTML = '<div class="empty">Belum ada data pengeluaran untuk dianalisis.</div>'; return; }
-  let html = '<table class="pivot"><thead><tr><th>Kategori</th>' + MONTHS_SHORT.map(m=>'<th>'+m+'</th>').join('') + '<th>Total</th></tr></thead><tbody>';
-  activeCats.forEach(([cat,vals]) => {
-    html += '<tr><td>'+cat+'</td>' + vals.slice(0,12).map(v => '<td>'+(v>0?(v/1000).toFixed(0)+'k':'-')+'</td>').join('') + '<td style="font-weight:700;">'+rupiah(vals.total)+'</td></tr>';
-  });
-  html += '</tbody></table>';
-  const top = activeCats[0];
-  html += '<div class="banner banner-note" style="margin-top:14px;">Kategori pengeluaran terbesar tahun ini: <b>'+top[0]+'</b> ('+rupiah(top[1].total)+').</div>';
-  pivotWrap.innerHTML = html;
-}
 
 // ================= RENDER: PEMASUKAN / PENGELUARAN =================
 function getMonthTx(kind){
@@ -1190,9 +1343,12 @@ function renderLedger(kind){
   } else {
     ledgerWrap.innerHTML = monthTx.map(t => {
       const fotoHtml = t.fotoUrl ? '<div class="ledger-foto"><a href="'+t.fotoUrl+'" target="_blank" rel="noopener">📷 Lihat foto</a></div>' : '';
+      const piutangHtml = (kind==='income' && t.status==='piutang')
+        ? '<div><span class="piutang-badge">⏳ Belum diterima</span> <button class="btn-mark-lunas" onclick="markLunas(\''+t.id+'\')">Tandai Lunas</button></div>'
+        : '';
       return '<div class="ledger-row">' +
         '<div class="ledger-date">'+t.tanggal.slice(8,10)+'/'+t.tanggal.slice(5,7)+'</div>' +
-        '<div class="ledger-mid"><div class="ledger-cat">'+escapeHtml(t.kategori)+'</div>' + (t.catatan ? '<div class="ledger-note">'+escapeHtml(t.catatan)+'</div>' : '') + fotoHtml + '</div>' +
+        '<div class="ledger-mid"><div class="ledger-cat">'+escapeHtml(t.kategori)+'</div>' + (t.catatan ? '<div class="ledger-note">'+escapeHtml(t.catatan)+'</div>' : '') + fotoHtml + piutangHtml + '</div>' +
         '<div class="ledger-amt" style="color:'+(kind==='income'?'var(--lime-dark)':'var(--coral)')+'">'+(kind==='income'?'+':'−')+rupiah(t.jumlah)+'</div>' +
         '<button class="del-btn" onclick="removeTransaction(\''+t.id+'\')">×</button></div>';
     }).join('');
