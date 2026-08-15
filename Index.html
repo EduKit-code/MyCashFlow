@@ -151,6 +151,7 @@
   .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
   .shortcut-link{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed var(--track);font-size:12px;font-weight:700;color:var(--ink);cursor:pointer;}
   .piutang-badge{display:inline-block;font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:6px;padding:2px 6px;margin-top:3px;}
+  .hutang-badge{display:inline-block;font-size:10px;font-weight:700;background:#FFE4E6;color:#9F1239;border-radius:6px;padding:2px 6px;margin-top:3px;}
   .btn-mark-lunas{border:none;background:var(--lime-bg);color:var(--lime-dark);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer;margin-top:3px;}
   .cb-row{display:flex;align-items:center;gap:6px;margin-top:8px;}
   .cb-row input{width:auto;}
@@ -297,7 +298,8 @@
         <label>Foto Bukti (opsional)</label>
         <input id="fFoto-income" type="file" accept="image/*" onchange="handleFotoPick(event,'income')">
         <div id="fotoPreviewStatus-income" class="status"></div>
-        <div class="cb-row"><input type="checkbox" id="fPiutang-income"><label for="fPiutang-income">Ini piutang — uangnya belum benar-benar diterima (masuk ke Liabilitas di Dashboard, bukan Saldo Kas)</label></div>
+        <div class="cb-row"><input type="checkbox" id="fPiutang-income" onchange="if(this.checked) document.getElementById('fHutang-income').checked=false;"><label for="fPiutang-income">Ini piutang — uangnya belum benar-benar diterima (masuk ke Liabilitas di Dashboard, bukan Saldo Kas)</label></div>
+        <div class="cb-row"><input type="checkbox" id="fHutang-income" onchange="if(this.checked) document.getElementById('fPiutang-income').checked=false;"><label for="fHutang-income">Ini uang pinjaman (hutang) — sudah diterima kasnya, tapi perlu dibalikin (dicatat sebagai Hutang di Liabilitas)</label></div>
         <button class="btn btn-primary" style="background:var(--lime-dark);" onclick="submitTransaction('income')">Simpan Pemasukan</button>
         <div id="submitStatus-income" class="status"></div>
       </div>
@@ -964,13 +966,19 @@ async function submitTransaction(kind){
     if(pendingFoto[kind]) payload.fotoBase64 = pendingFoto[kind];
     if(kind === 'income'){
       const piutangEl = document.getElementById('fPiutang-income');
-      payload.status = piutangEl && piutangEl.checked ? 'piutang' : 'lunas';
+      const hutangEl = document.getElementById('fHutang-income');
+      payload.status = (piutangEl && piutangEl.checked) ? 'piutang'
+        : (hutangEl && hutangEl.checked) ? 'hutang'
+        : 'lunas';
     }
     await apiCall('add', payload, 25000);
     document.getElementById('fAmount-'+kind).value = '';
     document.getElementById('fNote-'+kind).value = '';
     document.getElementById('fFoto-'+kind).value = '';
-    if(kind === 'income') document.getElementById('fPiutang-income').checked = false;
+    if(kind === 'income'){
+      document.getElementById('fPiutang-income').checked = false;
+      document.getElementById('fHutang-income').checked = false;
+    }
     pendingFoto[kind] = null;
     document.getElementById('fotoPreviewStatus-'+kind).textContent = '';
     statusEl.textContent = 'Tersimpan ✓';
@@ -1022,17 +1030,26 @@ function computeSaldoKas(uptoDate){
     return sum - t.jumlah;
   }, 0);
 }
-// Liabilitas dashboard = total pemasukan yang udah tercatat tapi belum
-// diterima kasnya (piutang) — akumulasi semua bulan. Dipecah juga jadi
-// "carriedOver": piutang yang tanggalnya SEBELUM bulan ini — ini yang
-// paling perlu diwaspadai karena artinya nunggak dari bulan lalu (atau lebih).
+// Liabilitas dashboard dipecah jadi DUA arah, jangan digabung jadi satu angka:
+// - piutang = uang ORANG LAIN yang belum masuk ke kita (kita yang ditagih ke mereka).
+//   Belum dihitung nambah Saldo Kas sampai ditandai lunas (lihat computeSaldoKas).
+// - hutang  = uang PINJAMAN yang sudah kita terima (sudah nambah Saldo Kas dari awal),
+//   tapi masih jadi kewajiban kita buat balikin. Tandai lunas cuma nge-clear status
+//   liabilitasnya — pelunasan cash-nya sendiri tetap harus dicatat manual sebagai
+//   transaksi Pengeluaran terpisah (mis. kategori "Bayar Hutang") pas beneran dibayar.
+// carriedOver = bagian yang tanggalnya SEBELUM bulan ini — nunggak dari bulan lalu (atau lebih).
 function computeLiabilitas(){
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const piutang = transactions.filter(t => t.tipe === 'income' && t.status === 'piutang');
-  const total = piutang.reduce((s,t) => s+t.jumlah, 0);
-  const carriedOver = piutang.filter(t => new Date(t.tanggal) < startOfMonth).reduce((s,t) => s+t.jumlah, 0);
-  return { total, carriedOver };
+  const totalPiutang = piutang.reduce((s,t) => s+t.jumlah, 0);
+  const carriedOverPiutang = piutang.filter(t => new Date(t.tanggal) < startOfMonth).reduce((s,t) => s+t.jumlah, 0);
+
+  const hutang = transactions.filter(t => t.tipe === 'income' && t.status === 'hutang');
+  const totalHutang = hutang.reduce((s,t) => s+t.jumlah, 0);
+  const carriedOverHutang = hutang.filter(t => new Date(t.tanggal) < startOfMonth).reduce((s,t) => s+t.jumlah, 0);
+
+  return { totalPiutang, carriedOverPiutang, totalHutang, carriedOverHutang };
 }
 
 function computeFeedback(monthTx, saldoKasSebelumBulanIni){
@@ -1123,9 +1140,12 @@ function renderKasLiabilitas(){
   if(!wrap) return;
   const kas = computeSaldoKas();
   const liab = computeLiabilitas();
-  const carriedNote = liab.carriedOver > 0
-    ? 'Termasuk ' + rupiah(liab.carriedOver) + ' nunggak dari bulan-bulan sebelumnya'
+  const piutangNote = liab.carriedOverPiutang > 0
+    ? 'Termasuk ' + rupiah(liab.carriedOverPiutang) + ' nunggak dari bulan-bulan sebelumnya'
     : 'Tercatat sebagai pemasukan tapi kasnya belum diterima';
+  const hutangNote = liab.carriedOverHutang > 0
+    ? 'Termasuk ' + rupiah(liab.carriedOverHutang) + ' nunggak dibalikin dari bulan-bulan sebelumnya'
+    : 'Uang pinjaman yang sudah diterima, masih perlu dibalikin';
   wrap.innerHTML = `
     <div class="kas-box">
       <div class="kas-icon">💵</div>
@@ -1135,9 +1155,15 @@ function renderKasLiabilitas(){
     </div>
     <div class="kas-box">
       <div class="kas-icon">⏳</div>
-      <div class="kas-label">Liabilitas / Piutang</div>
-      <div class="kas-value" style="color:${liab.total > 0 ? '#D97706' : 'var(--ink-soft)'};">${rupiah(liab.total)}</div>
-      <div class="kas-note">${carriedNote}</div>
+      <div class="kas-label">Piutang</div>
+      <div class="kas-value" style="color:${liab.totalPiutang > 0 ? '#D97706' : 'var(--ink-soft)'};">${rupiah(liab.totalPiutang)}</div>
+      <div class="kas-note">${piutangNote}</div>
+    </div>
+    <div class="kas-box">
+      <div class="kas-icon">📌</div>
+      <div class="kas-label">Hutang</div>
+      <div class="kas-value" style="color:${liab.totalHutang > 0 ? 'var(--coral)' : 'var(--ink-soft)'};">${rupiah(liab.totalHutang)}</div>
+      <div class="kas-note">${hutangNote}</div>
     </div>
   `;
 }
@@ -1345,6 +1371,8 @@ function renderLedger(kind){
       const fotoHtml = t.fotoUrl ? '<div class="ledger-foto"><a href="'+t.fotoUrl+'" target="_blank" rel="noopener">📷 Lihat foto</a></div>' : '';
       const piutangHtml = (kind==='income' && t.status==='piutang')
         ? '<div><span class="piutang-badge">⏳ Belum diterima</span> <button class="btn-mark-lunas" onclick="markLunas(\''+t.id+'\')">Tandai Lunas</button></div>'
+        : (kind==='income' && t.status==='hutang')
+        ? '<div><span class="hutang-badge">📌 Belum dibalikin</span> <button class="btn-mark-lunas" onclick="markLunas(\''+t.id+'\')">Tandai Lunas</button></div>'
         : '';
       return '<div class="ledger-row">' +
         '<div class="ledger-date">'+t.tanggal.slice(8,10)+'/'+t.tanggal.slice(5,7)+'</div>' +
